@@ -170,6 +170,38 @@ export interface AbilityTypeLabels {
   maxSkillLimitUp: number // MAX_SKILL_LIMIT_UP, confirmed 7
 }
 
+/** A `tag/*.xml` file (or an entry from the sibling `-- Additional Tag
+ * Files --/` pack) — a user-defined (or `system="true"` built-in) named
+ * collection referencing equipment by exact display name. */
+export interface Tag {
+  id: number
+  name: string
+  system?: boolean
+  itemKeys: string[]
+}
+
+/** `setting/allows.xml` — plain exact-name allow-lists per category. */
+export interface Allows {
+  equip: string[]
+  jewelry: string[]
+  skillCuff: string[]
+  tag: string[]
+}
+
+/** `setting/ignore.xml` — plain exact-name/class-code deny-lists per
+ * category. Note `skill` is lowercase in the source XML (a real quirk, not
+ * a typo to "fix") while every other section is PascalCase. */
+export interface Ignore {
+  equip: string[]
+  jewelry: string[]
+  skill: string[]
+  class: string[]
+  classJewelry: string[]
+  skillCuff: string[]
+  item: string[]
+  tag: string[]
+}
+
 export interface GameData {
   head: EquipData[]
   body: EquipData[]

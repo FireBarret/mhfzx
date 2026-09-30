@@ -15,13 +15,24 @@ export type XmlNode = string | number | Record<string, unknown> | undefined
 
 export type IsArrayRule = Set<string> | ((tagName: string, jPath: string) => boolean)
 
-export function makeParser(arrayRule: IsArrayRule): XMLParser {
+export interface MakeParserOptions {
+  /** Default true (fast-xml-parser's own default). Set false for files where
+   * a value's exact leading/trailing whitespace must round-trip byte-for-
+   * byte — confirmed necessary for tag/*.xml: at least one real file
+   * ("Directly Crafted G Rank .xml", matching its own trailing-space
+   * filename) has a `name="...Rank "` attribute with a real trailing space
+   * that trimming would silently discard on import and lose on export. */
+  trimValues?: boolean
+}
+
+export function makeParser(arrayRule: IsArrayRule, options: MakeParserOptions = {}): XMLParser {
   const test = arrayRule instanceof Set ? (tagName: string) => arrayRule.has(tagName) : arrayRule
   return new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: ATTR_PREFIX,
     parseAttributeValue: false,
     parseTagValue: false,
+    trimValues: options.trimValues ?? true,
     textNodeName: TEXT_KEY,
     // fast-xml-parser's own type allows jPath to be a richer "matcher" object
     // in some modes; we only ever use it in plain-string-jPath mode, so this
@@ -85,6 +96,16 @@ export function assertOneOf<T extends string>(value: string, allowed: readonly T
     throw new Error(`${context}: unexpected value ${JSON.stringify(value)}, expected one of ${allowed.join(', ')}`)
   }
   return value as T
+}
+
+/** Reads a `<Tag>...</Tag>` or `<Tag />` element containing only `<string>`
+ * (or a custom `childTag`) children, as used throughout allows.xml/ignore.xml. */
+export function parseStringListElement(
+  node: Record<string, unknown> | undefined,
+  childTag: string = 'string',
+): string[] {
+  if (!node) return []
+  return asArray(node[childTag] as XmlNode[]).map(textOf)
 }
 
 /** Strips a UTF-8 BOM if present. Confirmed some dat/conf/tag files have one
