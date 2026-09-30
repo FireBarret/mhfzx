@@ -542,6 +542,7 @@ mod tests {
         let labels = labels();
         let abilities = vec![Ability {
             type_name: labels.skill_limit_up.clone(),
+            name: None,
             tag: Some(SkillOption { name: "Skill Slots Up+5".into(), point: 5 }),
         }];
         let slot = EquipLike { abilities: &abilities, skills: &[] };
@@ -558,10 +559,12 @@ mod tests {
         let labels = labels();
         let equip_ability = vec![Ability {
             type_name: labels.skill_limit_up.clone(),
+            name: None,
             tag: Some(SkillOption { name: "Skill Slots Up+5".into(), point: 5 }),
         }];
         let cuff_ability = vec![Ability {
             type_name: labels.skill_limit_up.clone(),
+            name: None,
             tag: Some(SkillOption { name: "Skill Slots Up+5".into(), point: 5 }),
         }];
         let equip_slot = EquipLike { abilities: &equip_ability, skills: &[] };

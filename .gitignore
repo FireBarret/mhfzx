@@ -11,5 +11,10 @@ rust-core/pkg/
 # Decompiled proprietary source — never commit, kept local for reference only
 decompiled/
 
+# Large local-only real-data fixture for ad-hoc integration testing
+# (see rust-core/tests/real_data_search.rs, `cargo test -- --ignored`);
+# regenerate with `npx vitest run scripts/_dumpFixture.test.ts` in app/.
+rust-core/fixtures/
+
 # OS
 .DS_Store

@@ -5,6 +5,13 @@
 //! All identity is by exact name string, never a synthetic id — this matches how
 //! tag/allow/ignore/alias files already reference equipment, and keeps XML
 //! round-tripping honest.
+//!
+//! Every struct is `#[serde(rename_all = "camelCase")]` and every enum's
+//! variants are renamed to match `app/src/data/schema.ts` exactly, so a plain
+//! `GameData` object built by the TS importers can be handed across the
+//! wasm-bindgen boundary via `serde-wasm-bindgen` with no manual field
+//! mapping — the two schemas are kept in sync by hand, not generated, so any
+//! change here must be mirrored there (and vice versa).
 
 use serde::{Deserialize, Serialize};
 
@@ -13,28 +20,38 @@ pub type SkillName = String;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Job {
-    Both,        // 共
-    Blademaster, // 剣士
-    Gunner,      // ガンナー
+    #[serde(rename = "共")]
+    Both,
+    #[serde(rename = "剣士")]
+    Blademaster,
+    #[serde(rename = "ガンナー")]
+    Gunner,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sex {
-    Both,   // 共
-    Female, // 女
-    Male,   // 男
+    #[serde(rename = "共")]
+    Both,
+    #[serde(rename = "女")]
+    Female,
+    #[serde(rename = "男")]
+    Male,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Platform {
+    #[serde(rename = "PS3")]
     Ps3,
+    #[serde(rename = "PS4")]
     Ps4,
     Wii,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CostType {
+    #[serde(rename = "create")]
     Create,
+    #[serde(rename = "upgrade")]
     Upgrade,
 }
 
@@ -54,6 +71,7 @@ pub struct CostItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Cost {
     pub money: u32,
     /// Absent when a level has no associated craft/upgrade action (observed
@@ -67,19 +85,25 @@ pub struct Cost {
 /// The set of valid `type_name` values is read from conf/Define.xml at
 /// import time, never hardcoded (see rules-spec "Ability-type effects").
 ///
-/// `tag`: for スキル発動 (Senyu, ACTIVATE_SKILL) and the two Teni-tree ability
-/// types (Skill Slots Up / スキル強化), the decompiled `Ability.Tag` carries a
-/// concrete named `SkillOption` — see rules-spec §1/§4. `None` for ordinary
-/// ability types that carry no such payload.
+/// `name`: the TS importer's raw-text capture (e.g. a スキル発動/Senyu
+/// ability's inline text names the granted skill, like `"Speed Eater"`).
+/// `tag`: a fully-resolved `SkillOption` (name + point) — not populated by
+/// the current dat/ importer (see `app/src/data/schema.ts`'s `Ability` doc
+/// comment for why), reserved for when Senyu/Teni tag resolution is wired up.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Ability {
     pub type_name: String,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
     pub tag: Option<SkillOption>,
 }
 
 /// One `<Skill Point="N">Name</Skill>` entry. Order matters: the first 5
 /// entries in document order are what the original UI calls "Skill 1..5".
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SkillContribution {
     pub skill_name: SkillName,
     pub point: i32,
@@ -87,6 +111,7 @@ pub struct SkillContribution {
 
 /// One `<Lx Def="..." Slot="...">` level rung. Weapons use `atk` instead of `def`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LevelEntry {
     pub level: u8, // 1..=7
     pub def: Option<i32>,
@@ -96,6 +121,7 @@ pub struct LevelEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EquipData {
     pub name: EquipName,
     pub class: String, // one of the 39 bracket codes, e.g. "(GX)"
@@ -127,12 +153,14 @@ pub enum EquipSlotCategory {
 /// (confirmed by direct inspection of dat/Jewel.xml: ~half its records carry
 /// `Sources`, not mutually exclusive with `Cost`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JewelSource {
     pub part: String, // Source/@Type, e.g. "Head" | "Body" | "Arm" | "Waist" | "Leg"
     pub equip_name: EquipName,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JewelData {
     pub name: EquipName,
     /// Present only on "set/SP" jewels (the ones with `sources`) — a bracket
@@ -156,6 +184,7 @@ pub enum SkillCuffFamily {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SkillCuffData {
     pub name: EquipName,
     pub family: SkillCuffFamily,
@@ -179,6 +208,7 @@ pub struct SkillOption {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SkillBaseEntry {
     pub no: u32,
     pub id: String,
@@ -190,6 +220,7 @@ pub struct SkillBaseEntry {
 /// One rung of a TeniSkillBase.xml `<SkillTree>` ladder — structurally distinct
 /// from SkillBaseEntry (see rules-spec "Teni / Senyu skill math").
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TeniSkillTree {
     pub no: u32,
     pub id: String,
@@ -199,6 +230,7 @@ pub struct TeniSkillTree {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WeaponData {
     pub name: EquipName,
     pub job: Job,
@@ -215,6 +247,7 @@ pub struct WeaponData {
 /// the exact string values `Ability.type_name` is compared against — a data
 /// update that changes Define.xml changes these too.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AbilityTypeLabels {
     pub gclass_effect: String,        // ABILITY_TYPE_GCLASS_EFFECT, "Ｇ級効果"
     pub skill_up: String,             // ABILITY_TYPE_SKILL_UP, "スキルUP"
@@ -228,6 +261,7 @@ pub struct AbilityTypeLabels {
 
 /// The full normalized dataset loaded from a `dat/` + `conf/` folder.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GameData {
     pub head: Vec<EquipData>,
     pub body: Vec<EquipData>,
@@ -240,4 +274,53 @@ pub struct GameData {
     pub skill_base: Vec<SkillBaseEntry>,
     pub teni_skill_base: Vec<TeniSkillTree>,
     pub ability_types: AbilityTypeLabels,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Confirms a JSON payload shaped exactly like what the TS importers
+    /// (app/src/data/schema.ts + import/*.ts) produce — camelCase field
+    /// names, Japanese enum string values — deserializes correctly. This is
+    /// the contract the wasm-bindgen boundary depends on: the TS side is
+    /// never adjusted to match Rust's naming, only the reverse.
+    #[test]
+    fn deserializes_ts_shaped_json_for_one_equip_record() {
+        let json = r#"{
+            "name": "Pietra GX Helm",
+            "class": "(GX)",
+            "rare": 11,
+            "job": "共",
+            "sex": "共",
+            "equipType": "G Rank Armour",
+            "gr": 7,
+            "platform": null,
+            "elemental": { "fire": 0, "water": 0, "thunder": 0, "ice": 0, "dragon": 0 },
+            "levels": [
+                { "level": 1, "def": 246, "atk": null, "slot": 3,
+                  "cost": { "money": 1800, "costType": "upgrade", "items": [{ "name": "Ulti Conquest Proof", "num": 1 }] } }
+            ],
+            "abilities": [{ "typeName": "Ｇ級効果" }],
+            "skills": [{ "skillName": "Breeder", "point": 5 }]
+        }"#;
+        let equip: EquipData = serde_json::from_str(json).expect("should deserialize");
+        assert_eq!(equip.name, "Pietra GX Helm");
+        assert_eq!(equip.job, Job::Both);
+        assert_eq!(equip.equip_type, "G Rank Armour");
+        assert_eq!(equip.gr, Some(7));
+        assert_eq!(equip.platform, None);
+        assert_eq!(equip.levels[0].cost.cost_type, Some(CostType::Upgrade));
+        assert_eq!(equip.abilities[0].type_name, "Ｇ級効果");
+        assert_eq!(equip.abilities[0].name, None);
+    }
+
+    #[test]
+    fn job_sex_platform_enums_round_trip_through_their_ts_string_values() {
+        assert_eq!(serde_json::to_string(&Job::Blademaster).unwrap(), "\"剣士\"");
+        assert_eq!(serde_json::from_str::<Job>("\"ガンナー\"").unwrap(), Job::Gunner);
+        assert_eq!(serde_json::to_string(&Sex::Female).unwrap(), "\"女\"");
+        assert_eq!(serde_json::to_string(&Platform::Ps4).unwrap(), "\"PS4\"");
+        assert_eq!(serde_json::to_string(&Platform::Wii).unwrap(), "\"Wii\"");
+    }
 }
