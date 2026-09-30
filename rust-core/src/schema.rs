@@ -56,7 +56,10 @@ pub struct CostItem {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Cost {
     pub money: u32,
-    pub cost_type: CostType,
+    /// Absent when a level has no associated craft/upgrade action (observed
+    /// on real data: a free base weapon's `<Cost Money="0" />` carries no
+    /// `Type` attribute).
+    pub cost_type: Option<CostType>,
     pub items: Vec<CostItem>,
 }
 
@@ -118,14 +121,32 @@ pub enum EquipSlotCategory {
     Weapon,
 }
 
+/// A `<Source Type="Head">Equip Name</Source>` entry — many jewels are
+/// granted by specific armor pieces ("set decorations") rather than
+/// purchased/crafted, independently of whether the jewel also has a `Cost`
+/// (confirmed by direct inspection of dat/Jewel.xml: ~half its records carry
+/// `Sources`, not mutually exclusive with `Cost`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct JewelSource {
+    pub part: String, // Source/@Type, e.g. "Head" | "Body" | "Arm" | "Waist" | "Leg"
+    pub equip_name: EquipName,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct JewelData {
     pub name: EquipName,
+    /// Present only on "set/SP" jewels (the ones with `sources`) — a bracket
+    /// class code like equipment's, e.g. "(GX)".
+    pub class: Option<String>,
     pub job: Job,
     pub rare: u8,
     pub slot: u8,
     pub skills: Vec<SkillContribution>, // may include negative-point side skills
-    pub cost: Cost,
+    /// Zero or more *alternative* crafting recipes (e.g. "Artisan Deco" has
+    /// two independent `<Cost>` siblings, either of which crafts it). Empty
+    /// for jewels obtained only via `sources`.
+    pub costs: Vec<Cost>,
+    pub sources: Vec<JewelSource>, // empty for plain craftable jewels
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,7 +163,9 @@ pub struct SkillCuffData {
     pub rare: u8,
     pub slot: u8,
     pub skills: Vec<SkillContribution>,
-    pub cost: Cost,
+    /// Zero or more *alternative* crafting recipes (a handful of real records
+    /// have more than one `<Cost>` sibling — see `JewelData::costs`).
+    pub costs: Vec<Cost>,
     /// Carries Teni-tree (Skill Slots Up / スキル強化) and no-count-skill
     /// (スキル枠消費なし) entries — see docs/rules-spec.md §1/§4.
     pub abilities: Vec<Ability>,

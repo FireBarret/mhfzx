@@ -86,15 +86,24 @@ Per-type effects, as consumed in code:
   system (they are pre-satisfied and removed from search rather than summed).
 
 - **ＳＰ装飾品装着可能 (`ABILITY_TYPE_ATTACHABLE_SPJEWELS`)** — this string constant is only ever
-  passed to `AbilityManager.Create` at startup (`AbilityManager.cs:18-21`); no other decompiled
-  file checks `Ability.Name == ABILITY_TYPE_ATTACHABLE_SPJEWELS` directly. The actual "is this an
-  SP slot" behavior in the search/equip code is driven by a separate boolean field,
-  `EquipmentData.isSP` / `JewelryData.Type == JewelryType.SP` (see `Equipment.cs:96-123,163-204`,
-  `SearchClass.cs:604-615,1085-1128`), which is presumably set from this ability during data
-  loading (`BaseData.cs`) but the ability-name check itself was not found reused elsewhere.
-  **Confidence: partially verified** — the SP-slot mechanic itself (isSP flag) is fully verified;
-  the direct code path from this specific ability string to setting `isSP` was not pinned down
-  (see item list of unresolved items at the end).
+  passed to `AbilityManager.Create` at startup (`AbilityManager.cs:18-21`); no other decompiled file
+  checks `Ability.Name == ABILITY_TYPE_ATTACHABLE_SPJEWELS` directly, and this is **not an oversight
+  in this pass — it is genuinely unused for the SP-slot mechanic.** The actual "is this an SP slot"
+  flag, `EquipmentData.isSP`, is set purely from the **XML element name** of the slot-group node
+  during equipment loading, unrelated to any ability:
+  ```csharp
+  // BaseData.cs:934-935,944 (equipment-list XML loader)
+  XmlElement obj = (XmlElement)xmlNode;       // one <Normal>/<SP>-style grouping element per equip list
+  bool isSP = obj.Name == "SP";
+  ...
+  equipmentData.isSP = isSP;
+  ```
+  i.e. equipment is marked SP-slot-bearing by which XML tag name its entry is nested under (literally
+  `"SP"`), not by an `Ability` at all. The `ABILITY_TYPE_ATTACHABLE_SPJEWELS` constant appears to be
+  either vestigial or reserved for a UI/display use not exercised by the search path.
+  **Confidence: verified from decompiled source** — this ability string has no behavioral effect on
+  the SP-slot mechanic; do not implement any ability-based gating for it, replicate the XML-tag-name
+  rule instead.
 
 - **Skill Slots Up (`ABILITY_TYPE_SKILL_LIMIT_UP`)** — see item 2. Also doubles as one of the two
   ability types that make up "Teni" skill entries (see item 4).
@@ -119,7 +128,7 @@ Per-type effects, as consumed in code:
   build. **Confidence: verified as inert/unhandled** — confirmed absent from all code paths that
   key off ability-type strings; do not implement special logic for it beyond storing/displaying it.
 
-**Confidence: verified from decompiled source**, except the SP-jewel-ability wiring noted above.
+**Confidence: verified from decompiled source** for all seven ability types.
 
 ## 2. Skill point summation / activation math
 
@@ -188,6 +197,27 @@ So the real effective active-skill-count ceiling for a given equipment+cuff-comb
 that sums equipment+cuff `SkillLimitUpCount` first and caps once at 7 will under-count the true cap
 whenever both equipment and cuffs contribute skill-limit-up abilities simultaneously.
 
+**This "separately capped" formula is specific to the live search path and disagrees with the
+display/pre-search-validation path, which really does cap the combined total once.**
+`EquipSet.CountEquipBySkillLimitUpEffect()` (`EquipSet.cs:574-583`, feeding `EquipSet.
+GetMaxActiveSkillCount()` at `EquipSet.cs:585-599`, which in turn feeds `GetSkillInfoList` —
+consumed by `MakeSatisfiedSkills`/`ValidateSearchCondition`, item 4/6) computes:
+```csharp
+// EquipSet.cs:574-583
+int num = /* sum of equipment SKILL_LIMIT_UP SkillOption.Point */;
+int num2 = /* sum of cuff SKILL_LIMIT_UP SkillOption.Point */;
+return Math.Min(num + num2, Context.Define.MAX_SKILL_LIMIT_UP);   // combined THEN capped
+```
+i.e. `min(equipmentSkillLimitUp + cuffSkillLimitUp, 7)`, not `min(equip,7) + min(cuff,7)` like the
+search's own `SearchClass.CountSkillLimitUpEffect`. So for the same finished equipment set, the live
+search's internal cap (used to decide which combinations are even considered) can be strictly
+*higher* than the cap the display/validation path computes for the same set — e.g. equipment
+SkillLimitUp = 5 and cuff SkillLimitUp = 5: the search treats this as `min(5,7) + min(5,7) = 10`
+extra, while `EquipSet.CountEquipBySkillLimitUpEffect` treats it as `min(5+5,7) = 7` extra. A
+reimplementation must decide, and clearly document, which of these two formulas it is replicating
+for which purpose — using the wrong one for validation/pre-search skill-removal logic could make
+`ValidateSearchCondition`-equivalent checks disagree with what the search would actually accept.
+
 **"No-count" skills** (`スキル枠消費なし` / `ABILITY_TYPE_NOCOUNT_SKILL`) are skills that are
 exempt from counting against the active-skill-count cap, but they are **not simply subtracted from
 a global total** — they are tracked as a *distinct-skill-name allowance*:
@@ -197,8 +227,32 @@ return jdata?.Cast<SkillCuffData>().SelectMany((SkillCuffData cd) => cd.NoCountS
 ```
 and consumed via `GetSatisfiedCount`/the `num19 - satisfiedCount - num17 - num18 > maxActiveSkillCount`
 pruning check (`SearchClass.cs:531-534,577-585`) and again inside the decoration-combination
-scorer (`SearchClass.cs:975-1000`, and a near-duplicate at `2364-2392`): when more than 10 candidate
-active skills exist, the code **sorts the candidate `SkillBase` list** (`list2.Sort()` /
+scorer (`SearchClass.cs:975-1000`, and a near-duplicate at `2364-2392`). **The `>10` list being
+truncated here is the set of every currently-*active* skill granted by the whole prospective
+equipment+jewel+cuff combination — not the subset of skills the user is tracking conditions for.**
+It is built by seeding a dictionary from `OrderdEquipSkillPoint` (every skill any *ordered* piece
+grants, tracked or not — accumulated once at `SearchClass.cs:425-459`) and then adding every
+non-ordered candidate equip tag's, "plus"/single-plus jewel's, and cuff's *entire* `SkillPointList`/
+`SkillList` (again, all skills each item grants, not filtered to tracked ones), before filtering to
+entries where `SkillBase.GetOption(point) != null` (i.e. any active skill at all). **Two categories
+of decoration are conspicuously absent from this list, on purpose or not: SP jewels and senyu
+skills.** SP-jewel use-counts (`array21`/`SPJewelryDataTags`) only ever feed the separate slot-count
+tally `num55` (`SearchClass.cs:922-925`) — their granted skill points are never merged into
+`dictionary2`/the active-skill list at all. Senyu skills are likewise never added here: the
+dictionary's equipment-side seed (`OrderdEquipSkillPoint`, `SearchClass.cs:425-459`, and the
+non-ordered candidates' contribution inside `MakeEquipAndSkillCuffPointDict`,
+`SearchClass.cs:1916-1965`) both sum only `SkillPointList`/fixed-jewel `SkillList`, with no call to
+`GetSenyuSkills()` anywhere in that path. So a piece's senyu skill and any equipped SP jewel's
+granted skill can be genuinely active (and can satisfy a tracked condition through the ordinary
+running-point-total arrays, or through the senyu pre-satisfaction removal, item 4) while never
+appearing in *this* particular &gt;10-truncation/active-skill-count list at all. So an equipped
+combination that happens to grant several untracked "bonus" active skills (from equipment, plus
+jewels, single-plus jewels, or cuffs — but not SP jewels or senyu skills) with low `SkillId`s can
+push tracked skills further back in the sort order and out of the truncation window entirely — a
+real and non-obvious source of a tracked skill being computed as "not counted toward satisfaction"
+even though it is genuinely active, whenever 10+ skills (tracked or not, from the categories above)
+are simultaneously active.
+Once that full list is built, the code **sorts the candidate `SkillBase` list** (`list2.Sort()` /
 `list.Sort()` on a plain `List<SkillBase>`, which resolves to `SkillBase.CompareTo`,
 `SkillBase.cs:47-51` — **ascending by `SkillId`**, ties broken by nothing else) and walks the first
 `num30` (= the dynamic `maxActiveSkillCount + cuffLimitUp` cap for this candidate, see above)
@@ -206,11 +260,12 @@ entries of that SkillId-ordered list *plus* however many of those first N entrie
 no-count skills (`num66` counting `NoCountSkillBase.ContainsKey(key)` hits within the truncated
 window), effectively giving no-count skills "free" slots in the window used to decide how many of
 the *required* conditions are satisfied. **Which skills survive the &gt;10 truncation is therefore
-determined by `SkillId` order, not by relevance or by the order skills were requested** — a
-reimplementation must replicate the same `SkillId` ordinal ordering or it can decide a different
-subset of skills counts toward satisfaction whenever more than 10 candidate skills are active
-simultaneously. This is a fairly intricate mechanism — the no-count exemption is applied
-per-search-node based on which skill cuffs are currently selected (`AddNoCountSkill`,
+determined by `SkillId` order over the whole active-skill set, not by relevance, not by the order
+skills were requested, and not restricted to tracked skills** — a reimplementation must replicate
+both the full-active-skill-set construction and the `SkillId` ordinal sort, or it can decide a
+different subset of tracked skills counts toward satisfaction whenever 10 or more skills (tracked or
+incidental) are simultaneously active. This is a fairly intricate mechanism — the no-count exemption
+is applied per-search-node based on which skill cuffs are currently selected (`AddNoCountSkill`,
 `SearchClass.cs:1430-1449` clears and rebuilds `NoCountSkillBase` every time a skill-cuff
 combination changes), not a static global exemption list.
 
@@ -236,9 +291,24 @@ unreduced table). A reimplementation must keep these two scoring paths distinct 
 factoring them into one shared helper with a parameter, or it will silently change which candidate
 decoration assignment is judged "best" in the upper-bound-checking branch of the search.
 
-`GetSatisfiedCount` (`SearchClass.cs:3037-3048`) — used for the "already satisfied by senyu skill"
-pruning bound — counts how many *non-ignored* skill-point-conditions are already met purely by the
-ordered/fixed equipment's senyu skills, independent of the search variables.
+`GetSatisfiedCount` (`SearchClass.cs:3037-3048`) counts how many *non-ignored* skill-point-conditions
+are already met purely by senyu skills present on the equipment in a given `EquipmentDataTag[]`.
+It has **two call sites with very different behavior**, not one:
+- `GetSatisfiedCount(RowSkillPointConditionTable, EquipDataTags, null)` (`SearchClass.cs:527`) — this
+  passes the live `SearchClass.EquipDataTags` field, which at that point in the loop holds **both
+  the ordered/fixed slots and the equipment combination currently being tried** for the non-ordered
+  slots (populated moments earlier by `InitializeEnvironment`). So this call is **recomputed for
+  every equipment combination visited**, not "ordered-only" — a candidate piece's own senyu skill
+  can satisfy a condition here too, not just the user's originally-fixed gear.
+- `GetSatisfiedCount(RowSkillPointConditionTable, null, cuffs)` (`SearchClass.cs:579`) — this passes
+  `equipDataTags: null` explicitly. Since the method's first line is `if (equipDataTags == null)
+  return 0;`, **this call always returns `0`, unconditionally.** The method's `cuffs` parameter is,
+  in fact, never referenced anywhere in the method body at all (skill cuffs don't carry senyu
+  skills, so there was nothing to check) — so `satisfiedCount2` at `SearchClass.cs:579-585` is dead
+  weight: `num19 - (satisfiedCount + satisfiedCount2 + count) > num30` always reduces to
+  `num19 - (satisfiedCount + count) > num30`. A reimplementation can safely drop this second call
+  site (and the `cuffs` parameter) as a no-op, but should keep the first call site's per-candidate
+  recomputation.
 
 **Confidence: verified from decompiled source.**
 
@@ -276,14 +346,28 @@ supports `Divide(from, to...)` (e.g. split one 3-slot into a 1-slot + 2-slot) an
     Efficiency = pt.Point / jdt.jd.Slot;   // both operands int -> int division, THEN widened to double
     ```
     `Efficiency` is declared `double` (`PlusJewelryDataTag.cs:11`), but `pt.Point` and
-    `jdt.jd.Slot` are both `int`, so the division happens in integer arithmetic and truncates
-    toward zero *before* the result is implicitly converted to `double`. A 3-slot decoration worth
-    +5 points gets `Efficiency = 1` (not `1.666...`), not `1` because of any deliberate flooring
-    design — it is a plain C# integer-division artifact. This value feeds `PlusJewelryListTag.
+    `jdt.jd.Slot` are both `int`, so the division happens in integer arithmetic and **truncates
+    toward zero** *before* the result is implicitly converted to `double` — this is C#'s standard
+    `int / int` behavior, not a floor. For positive values the two coincide (a 3-slot decoration
+    worth +5 points gets `Efficiency = 1`, not `1.666...`), but they diverge for negative point
+    values, which genuinely occur here: candidate `PlusJewelryDataTag`s can carry negative
+    `SpecificPoint.Point` whenever the tracked skill has an `UpperPoint` cap (`MHSX2Form.cs:1670`,
+    `if (skillPoint > 0 || value.UpperPoint.HasValue) ...`). For those, truncating toward zero
+    (`-5 / 3 == -1` in C#) is *not* the same as flooring (`floor(-5.0/3.0) == -2`) — so "floor" is
+    the wrong word for this behavior and must not be used to reimplement it. There is also a
+    zero case worth calling out explicitly: any jewel whose `|Point| < Slot` truncates to
+    `Efficiency == 0` (e.g. a 3-slot jewel worth only +2 points), and if *every* candidate for a
+    skill truncates to 0, `MaxEfficiency` is 0 and `PrunedByRestSlot` (below) will prune any branch
+    where that skill still has a positive remaining requirement — a low-value-per-slot skill can
+    become entirely unreachable through this path. This value feeds `PlusJewelryListTag.
     MaxEfficiency`/`MinEfficiency` (`PlusJewelryListTag.cs:33-44`), `PossibleUseCount`, the
     `nextJewelryCantSatisfy` greedy check, `SearchClass.cs:2074`'s efficiency comparison, and
     `PlusJewelryDataTag.CompareTo`'s sort order — i.e. essentially the entire jewel-placement
-    heuristic layer is built on floor-divided ratios, not exact ones.
+    heuristic layer is built on these truncated ratios, not exact ones. **Portability note**: Rust's
+    integer division (`i32 / i32`) also truncates toward zero, identically to C# — so a Rust port
+    that keeps this computation in integer arithmetic before converting to `f64` will reproduce this
+    behavior automatically; the risk is only in accidentally "improving" it to `pt.Point as f64 /
+    jdt.jd.Slot as f64` (true division), which would silently change search results.
 
   - **`PrunedByRestSlot(CurrentRestPoint, Slots, start, end)`** (`SearchClass.cs:2427-2444`) is the
     branch-and-bound pruning function used as the primary feasibility gate:
@@ -318,8 +402,16 @@ supports `Divide(from, to...)` (e.g. split one 3-slot into a 1-slot + 2-slot) an
     (truncated) `MaxEfficiency` ratios across all remaining (not-yet-visited)
     `PlusJewelryListTag`s — a look-ahead feasibility bound, subject to the same truncation caveat.
 
-  - **`ExistsSuperior(skillIndex, index, useCount)`** (`SearchClass.cs:2446-2457`) is a lookup
-    against a precomputed **pairwise** dominance table, not a single-jewel dominance check:
+  - **`ExistsSuperior(skillIndex, index, useCount)`** (`SearchClass.cs:2446-2457`) — note the first
+    parameter's name is misleading in the original source: despite being called `skillIndex`, the
+    value passed at the call site (`SearchClass.cs:2062`, `ExistsSuperior(num, k, array)`) is `num`,
+    the current **position within the `PlusJewelyDataTags`/`PlusJewelryUseCount` array** (i.e. which
+    skill-group we're on in iteration order), not an index into `SkillPointConditionTable`. It
+    happens to enumerate skill-groups in the same order `CreateIneffectivePrefix` built the table in
+    (both walk `list8`/`PlusJewelyDataTags` positionally), so using it as an array position is
+    correct — just don't confuse it with `PlusJewelryListTag.SkillIndex` (a different int, used
+    elsewhere to index into `CurrentRestPoint`/`SkillPointConditionTable`). `ExistsSuperior` is a
+    lookup against a precomputed **pairwise** dominance table, not a single-jewel dominance check:
     ```csharp
     int[] array = PlusJewelryIneffectivePrefix[skillIndex][index];
     foreach (int num in array) { if (useCount[num] > 0) return true; }
@@ -370,7 +462,30 @@ supports `Divide(from, to...)` (e.g. split one 3-slot into a 1-slot + 2-slot) an
     can and does cause the original tool to silently skip achievable decoration assignments. A
     faithful port must replicate this exact average-based gate (including the `+1` and the
     `Total + 1` slot-count fudge) to match the original's result set; an "improved" max-based
-    version will find results the original does not.
+    version will find results the original does not. Four details a port must get exactly right:
+    - **Rounding mode**: `Math.Round(double)` with no explicit `MidpointRounding` argument defaults
+      to **banker's rounding (`ToEven`)** in .NET — `2.5` rounds to `2`, not `3`. Rust's
+      `f64::round()` rounds half-away-from-zero (`2.5` → `3`); a faithful port must use
+      `f64::round_ties_even()` (or equivalent explicit-ToEven logic), not the naive `.round()`.
+    - **The average is net, not all-positive**: `jdt.SkillPointTags.Sum(spt => spt.Point)` sums a
+      jewel's contribution across *every* tracked skill it touches, including negative contributions
+      (jewels/tags with negative points exist whenever a skill has an `UpperPoint` cap set —
+      `MHSX2Form.cs:1670`, `if (skillPoint > 0 || value.UpperPoint.HasValue) ... list7.Add(...)`).
+      So a jewel that's actually a "downside" for one tracked skill while helping another can pull
+      the average down (or negative), tightening or loosening the gate in ways that don't correspond
+      to "typical jewel usefulness."
+    - **It is a per-jewel average multiplied by a slot-unit count**: the average is computed once
+      per distinct candidate jewel (regardless of its slot size), but it's then multiplied by
+      `slotInfo2.Total` (total free *slot units*, e.g. a single 3-slot decoration counts as 3 toward
+      `Total`). A 3-slot jewel contributes one sample to the average but can consume 3 units of
+      `Total` capacity, so the two sides of the inequality are not on a consistent per-unit basis —
+      this is a real unit mismatch in the original, not just an approximation choice, and should be
+      reproduced as-is rather than "fixed" to a per-slot-unit average.
+    - **Empty-candidate-list crash**: `IEnumerable<int>.Average()` throws `InvalidOperationException`
+      on an empty sequence in .NET. If `list2` is empty (the user tracks a skill with zero surviving
+      candidate decorations after filtering/dominance-pruning), the original throws here rather than
+      producing a graceful "no decorations available" result. A reimplementation should decide
+      deliberately whether to reproduce this failure mode or handle the empty case gracefully.
 
 - **"Single" plus-jewels** (`SinglePlusJewelryDataTags`, jewels that grant a fixed named skill and
   have only one copy/definition to consider) are filled first, directly inline in the reserved-slot
@@ -426,23 +541,63 @@ skills can also come from skill cuffs — `TeniSkillCondition.cs:44`). Crucially
   non-obvious functional split between two ability types that otherwise look identical in the UI's
   Teni-skill picker (`TeniSkillSelectionForm.cs:48-53`, which unions both ability-type searches
   into one combined checklist with no visible distinction).
-- Teni skill points themselves are **not** added into the running `SkillPoint` totals used for
-  ordinary skill activation at all in the reviewed code paths — `GetTeniSkills()` is only consulted
-  by `TeniSkillCondition.Evaluate` (a set/subset-membership predicate, "does this piece have Teni
-  skill X") and by `SkillLimitUpCount` (a slot-cap-raising side effect). No code path was found that
-  sums Teni `SkillOption.Point` values into the regular skill-point-condition arrays (`array3`/
-  `array5`/`array6`/`array7` in `SearchClass.Search`). **This strongly suggests Teni skill levels do
-  not stack additively with normal equipment skill points** — a Teni entry is evaluated purely as a
-  named-skill membership condition plus (conditionally) a cap-raising side effect, not as
-  contributing its `Point` value to any skill's point total.
+- **During the live search, Teni skill points do *not* stack — and the primary proof is in the data
+  schema itself, not merely in the absence of a summation call.** `TeniSkillBase` objects live in
+  their own dictionary, `BaseData.TeniSkillBaseMap` (`BaseData.cs:51,914`), built entirely separately
+  from `BaseData.SkillBaseMap` (`BaseData.cs:49,793`) — the dictionary that an equipment's `<Skills>`
+  XML node's entries are resolved against (`BaseData.cs:401,542,1073`, `SkillBase =
+  SkillBaseMap[name]`, which throws if the name isn't found in `SkillBaseMap`). Since `TeniSkillBase`
+  instances are never added to `SkillBaseMap`, **a Teni skill can only ever be granted via the
+  `<Abilities>` node's `SKILL_LIMIT_UP`/`SKILL_UPGRADE` ability tag** (`BaseData.cs:557-567`,
+  resolving into a `TeniSkillBase`-keyed `SkillOption`), **never via the ordinary `<Skills>` node** —
+  so there is no data-level path for a Teni point to ever end up in `EquipmentData.SkillPointList`,
+  which is exactly what `SearchClass.Search()`'s point-summation arrays (`array3`/`array5`/`array6`/
+  `array7`) are built from. This is corroborated (not primarily proven) by the fact that
+  `SearchClass.cs` never calls `GetTeniSkills()` anywhere, and that the closest analogous
+  summation helper, `EquipSet.GetSkillPointArrayList()` (`EquipSet.cs:170-256`) — which sums
+  `EquipData.SkillPointList`, fixed jewels' `SkillList`, and skill cuffs' `SkillList` for display —
+  also never calls `GetTeniSkills()`. (`GetSkillPointArrayList` is not a full mirror of `Search()`'s
+  own summation, though — `Search()` additionally applies the senyu-skill `×10` sentinel weighting
+  and reserved-jewel contributions that `GetSkillPointArrayList` has no equivalent for; the two are
+  only alike in that neither one ever touches `GetTeniSkills()`, which is the fact that matters here.)
 
-**Confidence: verified from decompiled source** for the mechanism and the cap-raising split;
-**inferred with high confidence but not 100% proven** for "Teni points never stack additively" —
-this is an absence-of-evidence conclusion (no summation call site was found across
-`SearchClass.cs`, `MHSX2Form.cs`, `EquipmentData.cs`, `SkillCuffData.cs`); a targeted search of the
-remaining ~180 unread files (in particular `EquipSetSkillView.cs`/`EquipSetView.cs`, which render
-final skill totals to the UI) would be needed to fully rule out a UI-only summation path that has no
-bearing on the search algorithm itself.
+- **However, Teni skill points from multiple worn pieces genuinely *are* summed — but only in one
+  narrow, display/export-only code path, `EquipSet.GetTeniSkills()`** (`EquipSet.cs:607-614`):
+  ```csharp
+  public List<SkillOption> GetTeniSkills() {
+      var first = Equips...SelectMany(eq => eq.EquipData.GetTeniSkills());
+      var second = PigClothes.SkillCuffs...SelectMany(cf => cf.GetTeniSkills());
+      return (from so in first.Concat(second)
+          group so.Point by so.SBase into g
+          select g.Key.GetOption(g.Sum())).ToList();     // sums points per TeniSkillBase, then re-tiers
+  }
+  ```
+  This groups every worn piece's (and cuff's) Teni `SkillOption`s by their shared `TeniSkillBase`,
+  **sums** the point values across all contributing pieces, and re-resolves the combined total
+  through `SkillBase.GetOption` to find the resulting active tier — i.e. genuine additive stacking,
+  computed after the fact over a fully-assembled `EquipSet`. A repo-wide grep confirms this specific
+  method (as opposed to the per-piece `EquipmentData.GetTeniSkills()`/`SkillCuffData.GetTeniSkills()`
+  used everywhere else) has exactly **one** caller in the whole decompiled source:
+  `MHSX2.Clip/Mhsx2TextClip.cs:83`, part of the "copy build as text" clipboard-export feature. It is
+  never consulted by `SearchClass`, and `TeniSkillCondition.Evaluate` (used during search) calls the
+  per-piece, non-summing `GetTeniSkills()` and only checks name membership — so this additive
+  summation has **zero effect on which equipment sets are found or accepted**, only on how a
+  Teni skill's effective level is reported in one export format after a set has already been chosen.
+
+**Net verdict for the reimplementation:** Teni skill *conditions* during search are pure per-piece
+name-membership checks (no point math); the active-skill-count *cap* gets `SKILL_LIMIT_UP`-type Teni
+entries' points summed and capped at 7 for the equipment side, and separately summed and capped at 7
+again for whichever cuff combination is current, per item 2's formula (`10 + GRankBonus +
+min(equipSLU,7) + min(cuffSLU,7)`) — not a single shared cap; and a genuine sum-then-retier
+computation exists for Teni skills, but it is scoped to one clipboard-export feature and has no
+bearing on search correctness or result selection. A search-engine port can safely ignore additive
+Teni stacking; a full feature-parity port that includes the "copy as text" export must replicate
+`EquipSet.GetTeniSkills()`'s sum-then-retier behavior specifically for that feature and nowhere else.
+
+**Confidence: verified from decompiled source** — both halves of this conclusion (no stacking in
+the live search's data/summation path, and an isolated, single-call-site stacking path used only for
+clipboard text export) were confirmed by direct reads of `EquipSet.cs`, `BaseData.cs`, and a
+repo-wide grep of every `GetTeniSkills()` call site, not inferred from absence of evidence.
 
 ## 5. The search/backtracking algorithm itself
 
@@ -474,7 +629,16 @@ chosen by the user and is constant for the whole search). For each equipment com
    conditions** (`num65`/`num33`, highest is better) **(b) total slots used by jewels** (`num54`,
    lowest is better) **(c) SP-jewel slots used** (`num55`, lowest) **(d) skill-cuff slots used**
    (`num56`, lowest)** — see `SearchClass.cs:1005-1046`. This is the actual "is this better than
-   the best-so-far for this exact equipment combo" comparator.
+   the best-so-far for this exact equipment combo" comparator. **Criterion (a) is only a real
+   discriminator in the &gt;10-active-skills case; in the common ≤10 case it is the same constant
+   (`OrderdSkillNum`) for every candidate compared within a given search run (item 6), so the
+   ordering effectively collapses to (b)→(c)→(d) whenever 10 or fewer skills are active.**
+   Conversely, when more than 10 skills are active, `num65` is counted against the *unreduced*
+   `RowSkillPointConditionTable` (item 2) rather than against `OrderdSkillNum`'s already-reduced
+   table, so it can legitimately exceed `OrderdSkillNum` — meaning a &gt;10-active-skill candidate
+   can out-rank a ≤10-active-skill one on criterion (a) alone partly *because* it's being scored
+   against a table that still contains pre-satisfied/senyu-satisfied entries the ≤10 case's constant
+   already excludes. Both halves of this asymmetry must be reproduced together, not just one.
 5. If a winning combination was found and its total defense falls in
    `[defence_lower, defence_upper]`, `MakeEquipSet` (`SearchClass.cs:1612-1717`) materializes an
    `EquipSet` (assigns jewels/cuffs back onto specific armor pieces) and it is appended (under
@@ -582,6 +746,23 @@ result`) applies any dedup on top of raw `AddEquipSetList` entries — needs fur
   When false, every cuff combination in `list` is tried and the lexicographic comparator
   (item 5, step 4) picks the best overall.
 
+  **When this flag is `false` (or the first cuff combination fails), a stale-cache quirk affects
+  every later cuff combination's &gt;10-truncation scoring for the rest of this equipment combo.**
+  `dictionary` (the `EquipAndSkillCuffPointDict` used to build the >10-active-skill list, item 2) is
+  reset to `null` only once per *equipment* combination (`SearchClass.cs:525`), not once per cuff
+  combination. `MakeEquipAndSkillCuffPointDict` (`SearchClass.cs:1916-1965`) only rebuilds its
+  contents `if (EquipAndSkillCuffPointDict == null)` — once *any* code path populates it (the first
+  call reached, whether at `SearchClass.cs:887` using the raw `SkillCuffUseCount` or inside
+  `FindEligibleJewelryUseCount` at `SearchClass.cs:2269` using whatever cuff combo was current at
+  that moment), it is simply returned as-is on every subsequent call for the remainder of this
+  equipment combination's cuff-combination loop — **the cuff-skill contribution baked into it is
+  whichever cuff combination happened to trigger the first build, not the cuff combination actually
+  being scored.** This only has an observable effect when the loop keeps running past the first cuff
+  combination — i.e. exactly when `AcceptFirstFoundSkillCuffCombination` is `false`, or when the
+  first combination doesn't produce a result (`flag4` stays false) so the loop continues anyway. A
+  faithful port must replicate this "first-build wins for the rest of the equipment combo" caching
+  behavior rather than "fixing" it to rebuild fresh per cuff combination.
+
 - **`AcceptFirstFoundDecorationCombination`** (`SearchClassOption`, default `true`) — inside
   `FindEligibleJewelryUseCount`, once a feasible decoration assignment is found:
   ```csharp
@@ -618,16 +799,49 @@ result`) applies any dedup on top of raw `AddEquipSetList` entries — needs fur
   should reproduce deliberately (e.g. by counting `RowRequiredSkillCount` the same unfiltered way)
   rather than "fixing" it to only count non-ignored entries.
 
+  **There is a second, equally important subtlety on the `num33`/`num65` side, and it makes the
+  early-exit's fate fixed for the entire search in the common case.** Whenever the currently active
+  skill list has 10 or fewer entries (`list2.Count <= 10` / `list.Count <= 10`, the common case),
+  `num33`/`num65` is **not recomputed from the current candidate at all** — it is simply set to
+  `OrderdSkillNum` (`SearchClass.cs:1001-1004,2924-2926`, the `else` branch of the `>10` check),
+  and `OrderdSkillNum` is a **constant computed exactly once per `SearchClass` instance, before the
+  search loop begins**:
+  ```csharp
+  // SearchClass.cs:218-224
+  foreach (SkillPointCondition value in SkillPointConditionTable.Values) {
+      if (!value.isIgnore) { OrderdSkillNum++; }
+  }
+  ```
+  counting non-`isIgnore` entries of the **live, already-reduced** `SkillPointConditionTable` (the
+  table with pre-satisfied/senyu/unnecessary skills already stripped by `MHSX2Form` before the
+  `SearchClass` was even constructed — see item 4/5). So in the ≤10-active-skills case, the
+  `num33 == RowRequiredSkillCount` comparison reduces to `OrderdSkillNum == RowRequiredSkillCount`
+  — **a fixed true/false value decided once, up front, for the entire search run**, not something
+  that varies per candidate equipment/decoration combination. It evaluates true only when the
+  original condition table had zero `isIgnore` entries *and* zero skills were removed as
+  pre-satisfied/senyu/unnecessary/ignore-additions (i.e. `OrderdSkillNum` and the raw
+  `RowRequiredSkillCount` happen to agree); otherwise the "keep searching for exact match" branch
+  is permanently active for the whole run whenever ≤10 skills are active, and only the rarer >10-
+  active-skills case (where `num33` *is* recomputed per candidate, per the paragraph above) can ever
+  make the early-exit reachable when the counts originally disagreed.
+
 - **`CountRequiredSkillCount`** (`SearchClassOption`, default `false`) — gates an extra admissible
-  pruning bound, only activated when there are more than 10 tracked skill conditions (an explicit
-  optimization for large skill-condition sets, since the "top 10" truncation logic elsewhere in the
-  file — see item 2 — only kicks in above that count too):
+  pruning bound, only activated when there are more than 10 *tracked, satisfiable* skill conditions:
   ```csharp
   bool flag3 = option.CountRequiredSkillCount && num19 > 10; // SearchClass.cs:501
   ...
   flag6 = num19 - satisfiedCount - num17 - num18 > maxActiveSkillCount; // SearchClass.cs:531-534
   ```
-  i.e. it estimates the maximum number of conditions that could *possibly* still be satisfied
+  where `num19 = RowSkillPointConditionTable.Values.Where(spc => !spc.isIgnore && spc.SBase.
+  GetOption(spc.Point) != null).Count()` (`SearchClass.cs:500`) — **this is a different `>10`
+  threshold over a different, smaller set than the one in item 2's decoration-scorer truncation.**
+  `num19` counts only the user's originally-requested, non-excluded, satisfiable tracked
+  conditions; the `>10` checks inside `FindEligibleJewelryUseCount`/`_UpperCheck` (item 2) instead
+  test the size of the full active-skill list for the *current candidate combination* (every active
+  skill any equipped piece/jewel/cuff grants, tracked or not). The two thresholds happen to share
+  the literal number `10` but are not the same gate and do not fire together — do not conflate or
+  merge them into one shared "large skill set" code path in a reimplementation. `CountRequiredSkillCount`'s
+  bound itself estimates the maximum number of conditions that could *possibly* still be satisfied
   (total non-ignored trackable conditions minus already-satisfied minus best-possible cuff bonuses)
   and prunes the branch outright if even that best case can't fit under the active-skill-count cap.
 
@@ -726,7 +940,17 @@ Per-subclass predicate semantics (all in `MHSX2/`):
   teniSkillNames.Contains(name))` (`TeniSkillCondition.cs:93-98`) — **exact string membership**,
   not substring. Uniquely among these conditions, it defines `Evaluate(JewelryData_base)` for real
   (cuffs can carry Teni skills too) and has `Target = EquipAndCuff` (`TeniSkillCondition.cs:44,100-
-  106`).
+  106`). **Critically, `SkillOption.Name` for a Teni entry is tier-specific, not tree-generic** —
+  confirmed directly from the data (`dat/TeniSkillBase.xml`, e.g. `<SkillTree Name="Skill Slots
+  Up"><Skill Point="7">Skill Slots Up+7</Skill><Skill Point="6">Skill Slots Up+6</Skill>...`): each
+  tier's own inner-text string (`"Skill Slots Up+7"`, `"Skill Slots Up+6"`, ...) *is* that tier's
+  `SkillOption.Name`, distinct per level. So `TeniSkillCondition("Skill Slots Up+3", lower: 2, upper:
+  5)` means **"between 2 and 5 individual pieces each carry exactly the `+3` tier of this Teni
+  skill"** — it is a per-piece exact-tier count, not "the Teni skill's tree is unlocked at any
+  level" and not "the summed/combined Teni level across the set reaches 3" (that summed notion only
+  exists in the unrelated `EquipSet.GetTeniSkills()` clipboard-export path, item 4). A
+  reimplementation must key its Teni-skill condition matching on the exact tier-qualified name
+  string, matching this data format, not on a (tree name, minimum level) pair.
 
 - **`EquipNameCondition`** — `Evaluate(EquipmentData d) => data.Name.Contains(EquipName)`
   (`EquipNameCondition.cs:37-40`) — **substring match** (`string.Contains`), the one condition type
@@ -822,15 +1046,15 @@ if (0 < equipment.Level && equipment.Level <= equipment.EquipData.LevelList.Coun
 
 ## Items not fully resolved
 
-1. **`ABILITY_TYPE_ATTACHABLE_SPJEWELS` wiring** (item 1) — the SP-slot mechanic (`isSP`) is fully
-   verified in behavior, but the exact code path that sets `EquipmentData.isSP`/`JewelryData.Type
-   == SP` from this specific ability string during XML loading was not located in the files read
-   (likely in `BaseData.cs`, which is large and was only grepped, not fully read).
-2. **Teni skill points "never stack additively"** (item 4) — verified by absence of any summation
-   call site across all files read, but not exhaustively proven across the full 202-file codebase
-   (in particular `EquipSetSkillView.cs`/`EquipSetView.cs`, the result-display views, were not read
-   in full).
-3. **Final-result de-duplication semantics** (item 5) — mostly resolved structurally, not fully
+Both items originally flagged here in the ability-effects and Teni-skill-math sections
+(`ABILITY_TYPE_ATTACHABLE_SPJEWELS` wiring, and whether Teni skill points ever stack additively)
+were fully resolved during a second verification pass by directly reading `BaseData.cs`'s equipment
+loader and `EquipSet.cs`'s skill-summation/aggregation methods — see items 1 and 4 above for the
+confirmed answers (`isSP` comes from an XML tag name, not the ability; Teni points do stack, but
+only in one clipboard-export method with no bearing on search or conditions). Two smaller items
+remain open:
+
+1. **Final-result de-duplication semantics** (item 5) — mostly resolved structurally, not fully
    confirmed at the UI layer. `EquipSetKey`'s reference-equality dedup is confirmed to be an
    internal search-tree memoization key only. Structurally, true duplicates should be rare by
    construction: (a) for a given equipment combination, the lexicographic comparator
@@ -842,6 +1066,6 @@ if (0 < equipment.Level && equipment.Level <= equipment.EquipData.LevelList.Coun
    plain odometer, not the dominated-variant tree walk. Whether `EquipSetListView`/`FilterableList`
    additionally applies any dedup on top of this (or whether it's needed) was not confirmed
    (`EquipSetListView.cs` was not read in this pass).
-4. **`StopSearching()`'s exact effect on already-running worker threads** (item 7) — confirmed that
+2. **`StopSearching()`'s exact effect on already-running worker threads** (item 7) — confirmed that
    `StopSearchCount` is a UI-timer-granularity post-hoc cap, but the implementation of
    `StopSearching()` itself (thread abort vs. cooperative stop) was not read.

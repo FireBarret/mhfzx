@@ -5,18 +5,22 @@
 //! written directly from the original app's decompiled source. Two pieces of
 //! that spec are *not* implemented here, deliberately, rather than guessed:
 //!
-//! - The exact "sort skills and truncate to a window of N (+ no-count
-//!   freebies)" mechanism docs/rules-spec.md §2 describes for choosing which
-//!   skills count when a set's candidate active-skill count exceeds 10, is a
-//!   search-space-reduction heuristic (deciding what to keep exploring across
-//!   many *candidate* combinations), not a rule for evaluating one already-
-//!   complete, concrete loadout. For a single fixed set, this evaluator
-//!   reports every skill whose tiered lookup resolves to an active option,
-//!   plus whether that count exceeds the computed cap — see
+//! - The exact ">10 active skills" truncation docs/rules-spec.md §2 describes
+//!   (sort the *entire* active-skill set — every skill any equipped piece,
+//!   plus/single-plus jewel, or cuff grants, tracked or not, but explicitly
+//!   *excluding* SP jewels and Senyu skills — ascending by `SkillId`, then
+//!   keep the first `maxActiveSkillCount` entries plus however many of those
+//!   are no-count-exempt) is a search-space-reduction heuristic for scoring
+//!   *candidate* combinations mid-search, not a rule for evaluating one
+//!   already-complete, concrete loadout. It also has no stable general
+//!   result independent of `SkillId` ordering, which this evaluator has no
+//!   reason to reproduce for a finished-set display. For a single fixed set,
+//!   this evaluator reports every skill whose tiered lookup resolves to an
+//!   active option, plus whether that count exceeds the computed cap — see
 //!   `EvaluationResult::exceeds_active_skill_cap` — without picking which
-//!   specific skills the original would keep vs. drop. Revisit only if a
-//!   concrete case shows the original truncates *which* skills display, not
-//!   just *how many* count against the cap.
+//!   specific skills the original would keep vs. drop. Revisit only if
+//!   Phase 4's search engine needs this exact truncation to score candidates
+//!   (in which case it belongs in `search.rs`, keyed on `SkillId`, not here).
 //! - Decoration/skill-cuff slot-filling combinatorics (docs/rules-spec.md §3)
 //!   are Phase 4's job (the search engine solves for which decorations to
 //!   use); this evaluator takes a fully concrete set of decorations/cuffs as
@@ -134,32 +138,38 @@ fn gclass_step_bonus(count: i32) -> i32 {
     }
 }
 
-/// docs/rules-spec.md §1/§2: `CountSkillLimitUpEffect` — the Skill-Slots-Up
-/// contribution from equipment + skill cuffs, capped at `max_skill_limit_up`
-/// (confirmed 7). This is *not* a cap on total active skills.
+/// docs/rules-spec.md §1/§2/§9: the Skill-Slots-Up contribution to the
+/// active-skill-count cap. Sums each matching ability's *Teni tag point
+/// value* (e.g. a "Skill Slots Up+5" ability contributes 5, not 1 — this is
+/// not just a count of how many such abilities are worn), for equipment and
+/// skill cuffs together, capped once at `max_skill_limit_up` (7).
+///
+/// This implements `EquipSet.CountEquipBySkillLimitUpEffect`'s
+/// **combined-then-capped** formula (`min(equip_sum + cuff_sum, 7)`) — the
+/// one the original uses for *displaying a finished set's stats*, which is
+/// this evaluator's job. Deliberately **not** implemented here: the live
+/// search's own internal `SearchClass.CountSkillLimitUpEffect`, which caps
+/// equipment and skill-cuff contributions **separately** at 7 each (so a
+/// candidate can get up to 14, not 7) as a *candidate-acceptance* heuristic
+/// while search is still in progress — a different formula for a different
+/// purpose, cited in the spec as something the original itself doesn't keep
+/// consistent with the display path. Phase 4's search engine must implement
+/// that separately-capped variant itself, not by calling this function.
 fn skill_limit_up_count(
     equip_slots: &[EquipLike],
     cuffs: &[EquipLike],
     labels: &AbilityTypeLabels,
 ) -> i32 {
-    let equip_count: i32 = equip_slots
-        .iter()
-        .map(|s| {
-            s.abilities
-                .iter()
-                .filter(|a| a.type_name == labels.skill_limit_up)
-                .count() as i32
-        })
-        .sum();
-    let cuff_count: i32 = cuffs
-        .iter()
-        .map(|s| {
-            s.abilities
-                .iter()
-                .filter(|a| a.type_name == labels.skill_limit_up)
-                .count() as i32
-        })
-        .sum();
+    let sum_tags = |abilities: &[crate::schema::Ability]| -> i32 {
+        abilities
+            .iter()
+            .filter(|a| a.type_name == labels.skill_limit_up)
+            .filter_map(|a| a.tag.as_ref())
+            .map(|tag| tag.point)
+            .sum()
+    };
+    let equip_count: i32 = equip_slots.iter().map(|s| sum_tags(s.abilities)).sum();
+    let cuff_count: i32 = cuffs.iter().map(|s| sum_tags(s.abilities)).sum();
     (equip_count + cuff_count).min(labels.max_skill_limit_up)
 }
 
@@ -269,6 +279,12 @@ pub fn evaluate_loadout(loadout: &Loadout, game_data: &GameData) -> EvaluationRe
         .collect();
 
     // --- docs/rules-spec.md §9: defense/elemental totals exclude the weapon slot ---
+    // This matches EquipSet.TotalDef's *display* semantics (what this evaluator
+    // reports). The live search's own internal defense-range pruning bound
+    // includes the weapon's Def, a documented inconsistency in the original —
+    // moot today (dat/Weapon.xml has no Def field at all, so it's always 0),
+    // but Phase 4's search engine must replicate that inclusion in its own
+    // pruning bound rather than assuming it matches this function.
     let total_defense: i32 = [
         &loadout.head,
         &loadout.body,
@@ -415,7 +431,7 @@ mod tests {
                 slot: 0,
                 cost: Cost {
                     money: 0,
-                    cost_type: CostType::Create,
+                    cost_type: Some(CostType::Create),
                     items: vec![],
                 },
             }],
@@ -519,5 +535,37 @@ mod tests {
         assert_eq!(gclass_step_bonus(3), 1);
         assert_eq!(gclass_step_bonus(4), 1);
         assert_eq!(gclass_step_bonus(5), 2);
+    }
+
+    #[test]
+    fn skill_limit_up_sums_tag_points_not_ability_counts() {
+        let labels = labels();
+        let abilities = vec![Ability {
+            type_name: labels.skill_limit_up.clone(),
+            tag: Some(SkillOption { name: "Skill Slots Up+5".into(), point: 5 }),
+        }];
+        let slot = EquipLike { abilities: &abilities, skills: &[] };
+        // A single "+5" ability must contribute 5, not 1.
+        assert_eq!(skill_limit_up_count(&[slot], &[], &labels), 5);
+    }
+
+    #[test]
+    fn skill_limit_up_caps_combined_total_once_at_seven() {
+        // Per docs/rules-spec.md §2 (EquipSet.CountEquipBySkillLimitUpEffect):
+        // equip=5 + cuff=5 is capped ONCE at 7, not min(5,7)+min(5,7)=10 — that
+        // separately-capped formula belongs to the live search's own internal
+        // candidate-cap heuristic (Phase 4), not this finished-set evaluator.
+        let labels = labels();
+        let equip_ability = vec![Ability {
+            type_name: labels.skill_limit_up.clone(),
+            tag: Some(SkillOption { name: "Skill Slots Up+5".into(), point: 5 }),
+        }];
+        let cuff_ability = vec![Ability {
+            type_name: labels.skill_limit_up.clone(),
+            tag: Some(SkillOption { name: "Skill Slots Up+5".into(), point: 5 }),
+        }];
+        let equip_slot = EquipLike { abilities: &equip_ability, skills: &[] };
+        let cuff_slot = EquipLike { abilities: &cuff_ability, skills: &[] };
+        assert_eq!(skill_limit_up_count(&[equip_slot], &[cuff_slot], &labels), 7);
     }
 }
