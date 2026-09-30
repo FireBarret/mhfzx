@@ -1,0 +1,15 @@
+# Node / Vite
+node_modules/
+app/dist/
+app/node_modules/
+
+# Rust
+target/
+rust-core/target/
+rust-core/pkg/
+
+# Decompiled proprietary source — never commit, kept local for reference only
+decompiled/
+
+# OS
+.DS_Store
