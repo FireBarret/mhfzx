@@ -7,23 +7,22 @@
 //! round-tripping honest.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 pub type EquipName = String;
 pub type SkillName = String;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Job {
-    Both, // 共
+    Both,        // 共
     Blademaster, // 剣士
-    Gunner, // ガンナー
+    Gunner,      // ガンナー
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Sex {
-    Both, // 共
+    Both,   // 共
     Female, // 女
-    Male, // 男
+    Male,   // 男
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,9 +63,15 @@ pub struct Cost {
 /// One rung (Ability Type="...") of an equipment piece's Abilities block.
 /// The set of valid `type_name` values is read from conf/Define.xml at
 /// import time, never hardcoded (see rules-spec "Ability-type effects").
+///
+/// `tag`: for スキル発動 (Senyu, ACTIVATE_SKILL) and the two Teni-tree ability
+/// types (Skill Slots Up / スキル強化), the decompiled `Ability.Tag` carries a
+/// concrete named `SkillOption` — see rules-spec §1/§4. `None` for ordinary
+/// ability types that carry no such payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Ability {
     pub type_name: String,
+    pub tag: Option<SkillOption>,
 }
 
 /// One `<Skill Point="N">Name</Skill>` entry. Order matters: the first 5
@@ -138,6 +143,9 @@ pub struct SkillCuffData {
     pub slot: u8,
     pub skills: Vec<SkillContribution>,
     pub cost: Cost,
+    /// Carries Teni-tree (Skill Slots Up / スキル強化) and no-count-skill
+    /// (スキル枠消費なし) entries — see docs/rules-spec.md §1/§4.
+    pub abilities: Vec<Ability>,
 }
 
 /// One rung of a SkillBase.xml `<Option Name Point>` ladder.
@@ -179,8 +187,24 @@ pub struct WeaponData {
     pub skills: Vec<SkillContribution>,
 }
 
+/// conf/Define.xml's ABILITY_TYPE_* label strings + MAX_SKILL_LIMIT_UP, read
+/// at import time and never hardcoded (see docs/rules-spec.md §1). These are
+/// the exact string values `Ability.type_name` is compared against — a data
+/// update that changes Define.xml changes these too.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AbilityTypeLabels {
+    pub gclass_effect: String,        // ABILITY_TYPE_GCLASS_EFFECT, "Ｇ級効果"
+    pub skill_up: String,             // ABILITY_TYPE_SKILL_UP, "スキルUP"
+    pub activate_skill: String,       // ABILITY_TYPE_ACTIVATE_SKILL, "スキル発動" (Senyu)
+    pub attachable_sp_jewels: String, // ABILITY_TYPE_ATTACHABLE_SPJEWELS
+    pub skill_limit_up: String,       // ABILITY_TYPE_SKILL_LIMIT_UP, "Skill Slots Up" (Teni)
+    pub skill_upgrade: String,        // ABILITY_TYPE_SKILL_UPGRADE, "スキル強化" (Teni)
+    pub nocount_skill: String,        // ABILITY_TYPE_NOCOUNT_SKILL, "スキル枠消費なし"
+    pub max_skill_limit_up: i32,      // MAX_SKILL_LIMIT_UP, confirmed 7
+}
+
 /// The full normalized dataset loaded from a `dat/` + `conf/` folder.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameData {
     pub head: Vec<EquipData>,
     pub body: Vec<EquipData>,
@@ -192,9 +216,5 @@ pub struct GameData {
     pub skill_cuffs: Vec<SkillCuffData>,
     pub skill_base: Vec<SkillBaseEntry>,
     pub teni_skill_base: Vec<TeniSkillTree>,
-    /// conf/Define.xml's ABILITY_TYPE_* label strings, keyed by their constant
-    /// name (e.g. "ABILITY_TYPE_SKILL_LIMIT_UP" -> "Skill Slots Up"). Read at
-    /// import time, never hardcoded — see docs/rules-spec.md.
-    pub ability_type_labels: HashMap<String, String>,
-    pub max_skill_limit_up: i32, // conf/Define.xml MAX_SKILL_LIMIT_UP
+    pub ability_types: AbilityTypeLabels,
 }

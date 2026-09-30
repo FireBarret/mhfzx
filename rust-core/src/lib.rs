@@ -7,9 +7,10 @@
 //! the plan, no evaluator or search logic is written until docs/rules-spec.md
 //! (the decompiled-source rules extraction) exists and has been reviewed.
 
-pub mod schema;
 pub mod evaluator;
+pub mod schema;
 pub mod search;
+pub mod skill_base;
 
 use wasm_bindgen::prelude::*;
 
