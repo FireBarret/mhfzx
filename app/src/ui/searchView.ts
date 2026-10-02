@@ -105,16 +105,16 @@ export function renderSearchView(container: HTMLElement) {
           <legend>Target Skills</legend>
           <div class="skill-tier-note">Pick a skill, then how strong you want it — the tiers shown are the game's real thresholds.</div>
           <div id="target-list"></div>
-          <div style="display:flex; gap:4px; margin-top:6px;">
-            <select id="add-skill-select" style="flex:1"></select>
+          <div class="add-skill-row">
+            <select id="add-skill-select"></select>
             <button id="add-skill-btn">Add</button>
           </div>
         </fieldset>
         <fieldset>
           <legend>Options</legend>
-          <label>Max Results <input id="max-results" type="number" value="20" min="1" max="500" style="width:60px"></label>
+          <div class="field-row">Max Results <input id="max-results" type="number" value="20" min="1" max="500" style="width:60px"></div>
         </fieldset>
-        <button id="run-search-btn" style="width:100%; padding:8px; font-weight:600;">Search</button>
+        <button id="run-search-btn" class="primary" style="width:100%; padding:8px;">Search</button>
       </div>
       <div class="search-results">
         <div class="results-summary" id="results-summary">Load a data folder, then add target skills and search.</div>
@@ -159,6 +159,10 @@ export function renderSearchView(container: HTMLElement) {
       renderResults(container, null, 'Load a data folder first.')
       return
     }
+    if (!appState.wasmReady) {
+      renderResults(container, null, 'The search engine is still starting up — wait a moment and try again.')
+      return
+    }
     if (targets.length === 0) {
       renderResults(container, null, 'Add at least one target skill.')
       return
@@ -168,8 +172,17 @@ export function renderSearchView(container: HTMLElement) {
       job: jobSelect.value as JobFilter,
       maxResults: Number(maxResultsInput.value) || 20,
     }
+    let results: FoundSet[]
     const start = performance.now()
-    const results = runSearch(gameData, request)
+    try {
+      results = runSearch(gameData, request)
+    } catch (err) {
+      // Surface the real error instead of failing silently — a thrown
+      // exception here previously produced no visible feedback at all.
+      console.error('Search failed:', err)
+      renderResults(container, null, `Search failed: ${err instanceof Error ? err.message : String(err)}`)
+      return
+    }
     const ms = (performance.now() - start).toFixed(1)
     renderResults(container, results)
     if (results.length > 0) {

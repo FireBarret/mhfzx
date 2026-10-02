@@ -65,8 +65,9 @@ folderInput.addEventListener('change', async () => {
 
 init()
   .then(() => {
+    appState.setWasmReady()
     statusEl.textContent = 'Ready — click "Load Data Folder…" to begin.'
   })
   .catch((err) => {
-    statusEl.textContent = `Failed to load WASM core: ${err}`
+    statusEl.textContent = `Failed to load WASM core: ${err instanceof Error ? err.message : String(err)}`
   })

@@ -1,10 +1,13 @@
 :root {
-  color-scheme: light dark;
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  --border: #999;
-  --header-bg: #d4d0c8;
-  --row-alt: rgba(0, 0, 0, 0.035);
-  --accent: #2a5db0;
+  color-scheme: light;
+  font-family: Tahoma, 'Segoe UI', system-ui, sans-serif;
+  --face: #ece9d8;
+  --panel: #f1efe2;
+  --border-dark: #716f64;
+  --border-light: #fff;
+  --accent: #316ac5;
+  --accent-text: #fff;
+  --row-alt: #f4f6fb;
 }
 
 * {
@@ -14,7 +17,9 @@
 body {
   margin: 0;
   padding: 0;
-  font-size: 13px;
+  font-size: 12px;
+  background: var(--face);
+  color: #1a1a1a;
 }
 
 #app {
@@ -23,51 +28,78 @@ body {
   height: 100vh;
 }
 
+/* --- Classic "raised" 3D bevel, the shared building block for buttons,
+   tabs and panels, so the whole app reads as one consistent desktop-app
+   chrome rather than flat modern elements dropped on a plain page. --- */
+.bevel-out {
+  border-top: 1px solid var(--border-light);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-dark);
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--face);
+}
+
+.bevel-in {
+  border-top: 1px solid var(--border-dark);
+  border-left: 1px solid var(--border-dark);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
 header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  padding: 6px 10px;
+  background: linear-gradient(to bottom, #2a5fc7, #16368f);
+  color: #fff;
+  border-bottom: 1px solid #0a1f54;
 }
 
 header h1 {
-  font-size: 15px;
+  font-size: 13px;
   margin: 0;
   font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 #status {
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: 11px;
+  opacity: 0.9;
+  margin-left: auto;
 }
 
 .tabs {
   display: flex;
-  border-bottom: 1px solid var(--border);
-  background: #ece9e2;
+  gap: 2px;
+  padding: 4px 6px 0 6px;
+  background: var(--face);
+  border-bottom: 1px solid var(--border-dark);
 }
 
 .tab-button {
-  padding: 6px 16px;
-  border: none;
-  border-right: 1px solid var(--border);
-  background: transparent;
+  padding: 5px 18px;
+  font-size: 12px;
   cursor: pointer;
-  font-size: 13px;
+  background: #ddd9c7;
+  border: 1px solid var(--border-dark);
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  position: relative;
+  top: 1px;
 }
 
 .tab-button.active {
   background: #fff;
   font-weight: 600;
-  border-bottom: 2px solid var(--accent);
+  padding-top: 6px;
 }
 
 .tab-panel {
   flex: 1;
   overflow: hidden;
   display: none;
+  background: #fff;
 }
 
 .tab-panel.active {
@@ -77,24 +109,29 @@ header h1 {
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 thead th {
   position: sticky;
   top: 0;
-  background: var(--header-bg);
-  border: 1px solid var(--border);
-  padding: 3px 6px;
+  background: var(--face);
+  border-top: 1px solid var(--border-light);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-dark);
+  border-bottom: 1px solid var(--border-dark);
+  padding: 3px 7px;
   text-align: left;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
+  font-weight: 600;
 }
 
 tbody td {
-  border: 1px solid var(--border);
-  padding: 2px 6px;
+  border-bottom: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  padding: 2px 7px;
   white-space: nowrap;
 }
 
@@ -103,33 +140,74 @@ tbody tr:nth-child(even) {
 }
 
 tbody tr:hover {
-  background: rgba(42, 93, 176, 0.1);
+  background: #d9e4fa;
 }
 
 .table-scroll {
   flex: 1;
   overflow: auto;
+  background: #fff;
 }
 
 button {
+  font-family: inherit;
   font-size: 12px;
-  padding: 4px 10px;
+  padding: 4px 14px;
   cursor: pointer;
+  border-top: 1px solid var(--border-light);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-dark);
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--face);
+  border-radius: 2px;
+}
+
+button:active:not(:disabled) {
+  border-top: 1px solid var(--border-dark);
+  border-left: 1px solid var(--border-dark);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+button:disabled {
+  color: #999;
+  cursor: default;
+}
+
+button.primary {
+  background: linear-gradient(to bottom, #4f8af0, #2a5fc7);
+  color: #fff;
+  font-weight: 600;
+  border-color: #1a3c8a;
 }
 
 input, select {
+  font-family: inherit;
   font-size: 12px;
   padding: 3px 5px;
+  border-top: 1px solid var(--border-dark);
+  border-left: 1px solid var(--border-dark);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  background: #fff;
+  border-radius: 1px;
 }
 
 fieldset {
-  border: 1px solid var(--border);
+  border-top: 1px solid var(--border-dark);
+  border-left: 1px solid var(--border-dark);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
   margin: 0 0 10px 0;
+  padding: 8px 10px 10px 10px;
+  background: var(--panel);
+  border-radius: 2px;
 }
 
 legend {
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
+  padding: 0 4px;
 }
 
 .search-layout {
@@ -142,8 +220,9 @@ legend {
   width: 320px;
   min-width: 320px;
   padding: 10px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--border-dark);
   overflow-y: auto;
+  background: var(--face);
 }
 
 .search-results {
@@ -151,6 +230,7 @@ legend {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: #fff;
 }
 
 .target-row {
@@ -158,32 +238,42 @@ legend {
   align-items: center;
   gap: 4px;
   margin-bottom: 4px;
+  background: #fff;
+  padding: 2px;
+  border: 1px solid #ccc;
 }
 
-.target-row select, .target-row .remove-target {
+.target-row select {
   flex-shrink: 0;
+  max-width: 150px;
 }
 
 .target-row .skill-name {
   flex: 1;
-  font-size: 12px;
+  font-size: 11px;
+  padding-left: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .remove-target {
   background: #c0392b;
   color: #fff;
-  border: none;
+  border: 1px solid #8a241a;
   border-radius: 2px;
   width: 20px;
   height: 20px;
   line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .results-summary {
   padding: 6px 10px;
-  font-size: 12px;
-  border-bottom: 1px solid var(--border);
-  background: #f7f6f3;
+  font-size: 11px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--panel);
 }
 
 .data-browser-layout {
@@ -198,8 +288,8 @@ legend {
   gap: 8px;
   align-items: center;
   padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-  background: #f7f6f3;
+  border-bottom: 1px solid var(--border-dark);
+  background: var(--panel);
 }
 
 .category-tabs {
@@ -208,16 +298,14 @@ legend {
 }
 
 .category-tab {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  background: #fff;
-  cursor: pointer;
-  font-size: 12px;
+  padding: 3px 12px;
+  font-size: 11px;
 }
 
 .category-tab.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
+  border-color: #1a3c8a;
 }
 
 .empty-state {
@@ -227,7 +315,25 @@ legend {
 }
 
 .skill-tier-note {
-  font-size: 11px;
-  color: #666;
+  font-size: 10px;
+  color: #555;
   margin: 2px 0 8px 0;
+  line-height: 1.4;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.add-skill-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.add-skill-row select {
+  flex: 1;
 }
