@@ -43,6 +43,11 @@ const resultRows = await page.locator('#results-body tr').count()
 console.log('--- result row count ---', resultRows)
 await page.screenshot({ path: '/tmp/screenshot-4-results.png' })
 
+console.log('--- clicking a result row to test master-detail ---')
+await page.locator('#results-body tr').first().click()
+await page.waitForTimeout(300)
+await page.screenshot({ path: '/tmp/screenshot-4b-detail.png' })
+
 console.log('--- switching to Data Browser tab ---')
 await page.locator('.tab-button[data-tab="browser"]').click()
 await page.waitForTimeout(500)

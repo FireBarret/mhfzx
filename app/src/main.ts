@@ -9,12 +9,31 @@ type Tab = 'search' | 'browser'
 
 const appEl = document.querySelector<HTMLDivElement>('#app')!
 appEl.innerHTML = `
-  <header>
-    <h1>MHFZ Set Searcher</h1>
-    <input id="folder-input" type="file" webkitdirectory style="display:none">
-    <button id="load-folder-btn">Load Data Folder…</button>
+  <div class="menu-bar">
+    <div class="menu-item" data-menu="file">File
+      <div class="menu-dropdown">
+        <button data-action="load-folder">Load Data Folder…</button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="view">View
+      <div class="menu-dropdown">
+        <button disabled>Search</button>
+        <button disabled>Data Browser</button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="tools">Tools
+      <div class="menu-dropdown">
+        <button disabled>Options… (not yet implemented)</button>
+      </div>
+    </div>
+    <div class="menu-item" data-menu="help">Help
+      <div class="menu-dropdown">
+        <button disabled>About MHFZ Set Searcher</button>
+      </div>
+    </div>
     <span id="status">Loading WebAssembly core…</span>
-  </header>
+    <input id="folder-input" type="file" webkitdirectory style="display:none">
+  </div>
   <div class="tabs">
     <button class="tab-button active" data-tab="search">Search</button>
     <button class="tab-button" data-tab="browser">Data Browser</button>
@@ -25,7 +44,6 @@ appEl.innerHTML = `
 
 const statusEl = document.querySelector<HTMLSpanElement>('#status')!
 const folderInput = document.querySelector<HTMLInputElement>('#folder-input')!
-const loadBtn = document.querySelector<HTMLButtonElement>('#load-folder-btn')!
 
 const searchPanel = document.querySelector<HTMLDivElement>('#tab-search')!
 const browserPanel = document.querySelector<HTMLDivElement>('#tab-browser')!
@@ -41,12 +59,28 @@ document.querySelectorAll<HTMLButtonElement>('.tab-button').forEach((btn) => {
   })
 })
 
-loadBtn.addEventListener('click', () => folderInput.click())
+// --- Classic dropdown menu bar: click a top-level item to open it, click
+// elsewhere to close. Only File > Load Data Folder is wired to a real
+// action right now; the rest are present for the authentic menu-bar look
+// (matching the original's File/View/Tools/Help bar) with disabled items
+// rather than silently doing nothing.
+const menuItems = document.querySelectorAll<HTMLDivElement>('.menu-item')
+menuItems.forEach((item) => {
+  item.addEventListener('click', (e) => {
+    const isOpen = item.classList.contains('open')
+    menuItems.forEach((m) => m.classList.remove('open'))
+    if (!isOpen) item.classList.add('open')
+    e.stopPropagation()
+  })
+})
+document.addEventListener('click', () => menuItems.forEach((m) => m.classList.remove('open')))
+
+document.querySelector<HTMLButtonElement>('[data-action="load-folder"]')!.addEventListener('click', () => folderInput.click())
+
 folderInput.addEventListener('change', async () => {
   const files = folderInput.files
   if (!files || files.length === 0) return
   statusEl.textContent = 'Parsing data files…'
-  loadBtn.disabled = true
   try {
     const gameData = await loadGameDataFromFileList(files)
     appState.setGameData(gameData)
@@ -58,15 +92,13 @@ folderInput.addEventListener('change', async () => {
     } else {
       statusEl.textContent = `Failed to load data: ${err instanceof Error ? err.message : String(err)}`
     }
-  } finally {
-    loadBtn.disabled = false
   }
 })
 
 init()
   .then(() => {
     appState.setWasmReady()
-    statusEl.textContent = 'Ready — click "Load Data Folder…" to begin.'
+    statusEl.textContent = 'Ready — File > Load Data Folder… to begin.'
   })
   .catch((err) => {
     statusEl.textContent = `Failed to load WASM core: ${err instanceof Error ? err.message : String(err)}`

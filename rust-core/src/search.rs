@@ -178,7 +178,14 @@ fn shortlist_weapons<'a>(weapons: &'a [WeaponData], job: Job, target_names: &[&s
     by_relevance.sort_by_key(|w| std::cmp::Reverse(weapon_relevance(w, target_names)));
     by_relevance.truncate(MAX_CANDIDATES_PER_SLOT);
 
-    for w in compatible.iter().copied().take(MAX_FILLER_PER_SLOT) {
+    // Fillers (no relevance to any target skill): prefer real combat
+    // weapons over zero-stat utility ones (e.g. "Weapon(Eating)", kept
+    // purely to grant one ability with no Atk at all) by sorting on Atk
+    // descending, rather than taking whichever happens to sort first in the
+    // source file.
+    let mut fillers: Vec<&WeaponData> = compatible;
+    fillers.sort_by_key(|w| std::cmp::Reverse(best_weapon_level(w).atk.unwrap_or(0)));
+    for w in fillers {
         if by_relevance.len() >= MAX_CANDIDATES_PER_SLOT + MAX_FILLER_PER_SLOT {
             break;
         }
@@ -208,6 +215,31 @@ struct SearchState<'a> {
     max_results: usize,
     nodes_visited: u64,
     results: Vec<FoundSet>,
+    /// How many results this weapon pass may still contribute, and how many
+    /// `results` already held when this pass started — together these cap
+    /// any single weapon's share of the result set (see `search()`), so
+    /// results aren't dominated by whichever weapon the odometer tries
+    /// first exhausting the whole budget before any other weapon is tried.
+    per_weapon_cap: usize,
+    weapon_pass_start_count: usize,
+}
+
+impl SearchState<'_> {
+    /// The overall stop condition, independent of which weapon pass (if
+    /// any) is currently running — this is what the outer weapon loop in
+    /// `search()` checks *before* starting a new pass, since that pass's
+    /// own `weapon_pass_start_count`/`per_weapon_cap` haven't been set for
+    /// it yet and would otherwise still hold the previous weapon's values.
+    fn overall_budget_exhausted(&self) -> bool {
+        self.results.len() >= self.max_results || self.nodes_visited >= MAX_NODES_VISITED
+    }
+
+    /// The full stop condition used inside a weapon pass's own recursion:
+    /// the overall cap, plus this pass's fair-share cap (see
+    /// `per_weapon_cap`'s doc comment).
+    fn budget_exhausted(&self) -> bool {
+        self.overall_budget_exhausted() || self.results.len() - self.weapon_pass_start_count >= self.per_weapon_cap
+    }
 }
 
 /// A rough decoration-capacity estimate for the bound: total open-slot
@@ -314,7 +346,7 @@ fn recurse<'a>(
     chosen: &mut [Option<&'a EquipData>; 5],
     running: &mut Vec<i32>,
 ) {
-    if state.results.len() >= state.max_results || state.nodes_visited >= MAX_NODES_VISITED {
+    if state.budget_exhausted() {
         return;
     }
     state.nodes_visited += 1;
@@ -345,7 +377,7 @@ fn recurse<'a>(
         for (i, d) in deltas.iter().enumerate() {
             running[i] -= d;
         }
-        if state.results.len() >= state.max_results || state.nodes_visited >= MAX_NODES_VISITED {
+        if state.budget_exhausted() {
             chosen[chosen_count] = None;
             return;
         }
@@ -406,11 +438,29 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
         return;
     }
 
-    let active_skills: Vec<FoundSkill> = result
+    // `result.active_skills` is a HashMap, so its iteration order carries no
+    // meaning -- without an explicit sort here, which skills happened to
+    // land in the UI's first few "Skill N" columns was effectively random,
+    // not necessarily the skills the caller actually searched for. Put the
+    // requested targets first, in the order the caller gave them, then any
+    // other (incidental/bonus) active skills by descending point value.
+    let target_order: HashMap<&str, usize> =
+        state.targets.iter().enumerate().map(|(i, t)| (t.skill_name.as_str(), i)).collect();
+    let mut active_skills: Vec<FoundSkill> = result
         .active_skills
         .iter()
         .map(|(name, a)| FoundSkill { skill_name: name.clone(), option_name: a.option_name.clone(), point: a.point })
         .collect();
+    active_skills.sort_by(|a, b| {
+        let a_rank = target_order.get(a.skill_name.as_str());
+        let b_rank = target_order.get(b.skill_name.as_str());
+        match (a_rank, b_rank) {
+            (Some(x), Some(y)) => x.cmp(y),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => b.point.cmp(&a.point).then_with(|| a.skill_name.cmp(&b.skill_name)),
+        }
+    });
 
     state.results.push(FoundSet {
         weapon: state.weapon.map(|w| w.name.clone()),
@@ -500,13 +550,25 @@ pub fn search(data: &GameData, input: &SearchInput) -> Vec<FoundSet> {
         max_results: input.max_results,
         nodes_visited: 0,
         results: Vec::new(),
+        per_weapon_cap: input.max_results,
+        weapon_pass_start_count: 0,
     };
 
-    for weapon in weapon_candidates {
-        if state.results.len() >= state.max_results || state.nodes_visited >= MAX_NODES_VISITED {
+    let weapon_count = weapon_candidates.len();
+    for (i, weapon) in weapon_candidates.into_iter().enumerate() {
+        if state.overall_budget_exhausted() {
             break;
         }
         state.weapon = weapon;
+        state.weapon_pass_start_count = state.results.len();
+        // Give each remaining weapon a fair share of what's left of the
+        // overall budget, so one early weapon with abundant valid armor
+        // combinations (e.g. a zero-stat utility weapon that nonetheless
+        // satisfies the skill targets) can't alone fill every result slot
+        // before any other weapon is even tried.
+        let remaining_budget = input.max_results.saturating_sub(state.results.len());
+        let remaining_weapons = weapon_count - i;
+        state.per_weapon_cap = remaining_budget.div_ceil(remaining_weapons).max(1);
         let mut chosen: [Option<&EquipData>; 5] = [None; 5];
         let mut running = weapon_deltas(weapon, &input.targets);
         recurse(&mut state, 0, &mut chosen, &mut running);
@@ -768,5 +830,108 @@ mod tests {
         assert!(!results.is_empty(), "expected the weapon's own skill + slot to be usable");
         assert_eq!(results[0].weapon.as_deref(), Some("Attack Sword"));
         assert_eq!(results[0].decorations, vec!["Attack 2-Slot".to_string()]);
+    }
+
+    /// Regression test for a real issue found via a live browser run: every
+    /// result picked the exact same weapon, because the outer weapon loop
+    /// tried candidates in order and exhausted the whole `max_results`
+    /// budget on the first one before any other weapon was ever tried.
+    /// With two equally-relevant weapons and more than one valid armor
+    /// combo available for each, requesting enough results must surface
+    /// more than one weapon, not just whichever came first.
+    #[test]
+    fn results_are_not_dominated_by_a_single_weapon_when_alternatives_exist() {
+        let head_a = armor("Head A", 50, 0, vec![]);
+        let head_b = armor("Head B", 60, 0, vec![]);
+        let plain = armor("Plain", 50, 0, vec![]);
+        let weapon = |name: &str| WeaponData {
+            name: name.into(),
+            job: Job::Both,
+            sex: Sex::Both,
+            rare: 5,
+            elemental: Elemental { fire: 0, water: 0, thunder: 0, ice: 0, dragon: 0 },
+            levels: vec![LevelEntry {
+                level: 1,
+                def: None,
+                atk: Some(100),
+                slot: 0,
+                cost: Cost { money: 0, cost_type: Some(CostType::Create), items: vec![] },
+            }],
+            abilities: vec![],
+            skills: vec![SkillContribution { skill_name: "Attack".into(), point: 10 }],
+        };
+        let data = GameData {
+            head: vec![head_a, head_b],
+            body: vec![plain.clone()],
+            arm: vec![plain.clone()],
+            waist: vec![plain.clone()],
+            leg: vec![plain],
+            weapons: vec![weapon("Sword A"), weapon("Sword B")],
+            jewels: vec![],
+            skill_cuffs: vec![],
+            skill_base: vec![attack_skill_base()],
+            teni_skill_base: vec![],
+            ability_types: labels(),
+        };
+        let input = SearchInput {
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 4,
+        };
+        let results = search(&data, &input);
+        let distinct_weapons: std::collections::HashSet<_> = results.iter().filter_map(|r| r.weapon.as_deref()).collect();
+        assert!(
+            distinct_weapons.len() > 1,
+            "expected more than one weapon across results, got only: {distinct_weapons:?}"
+        );
+    }
+
+    /// Regression test: `active_skills` must list the requested targets
+    /// first, in the order the caller gave them -- not whatever order a
+    /// `HashMap` iteration happens to produce (which is meaningless and, in
+    /// a live browser run, put unrelated skills in the UI's "Skill 1"
+    /// column instead of the skill the user actually searched for).
+    #[test]
+    fn active_skills_lists_requested_targets_first_in_request_order() {
+        fn skill_base(name: &str) -> SkillBaseEntry {
+            SkillBaseEntry {
+                no: 1,
+                id: "0001".into(),
+                name: name.into(),
+                skill_rank: false,
+                options: vec![SkillOption { name: format!("{name} +1"), point: 10 }],
+            }
+        }
+        // One piece grants all three skills; the target list deliberately
+        // requests them in the opposite order from how they're defined
+        // below, so a correct implementation can't pass by accident.
+        let loaded_head = armor("Loaded Head", 50, 0, vec![("Attack", 10), ("Health", 10), ("Stealth", 10)]);
+        let plain = armor("Plain", 50, 0, vec![]);
+        let data = GameData {
+            head: vec![loaded_head],
+            body: vec![plain.clone()],
+            arm: vec![plain.clone()],
+            waist: vec![plain.clone()],
+            leg: vec![plain],
+            weapons: vec![],
+            jewels: vec![],
+            skill_cuffs: vec![],
+            skill_base: vec![skill_base("Attack"), skill_base("Health"), skill_base("Stealth")],
+            teni_skill_base: vec![],
+            ability_types: labels(),
+        };
+        let input = SearchInput {
+            targets: vec![
+                SearchTarget { skill_name: "Health".into(), min_point: 10 },
+                SearchTarget { skill_name: "Attack".into(), min_point: 10 },
+            ],
+            job: Job::Both,
+            max_results: 1,
+        };
+        let results = search(&data, &input);
+        assert_eq!(results.len(), 1);
+        let names: Vec<&str> = results[0].active_skills.iter().map(|s| s.skill_name.as_str()).collect();
+        assert_eq!(&names[0..2], &["Health", "Attack"], "targets must come first, in request order: {names:?}");
+        assert!(names.contains(&"Stealth"), "the incidental bonus skill should still be listed: {names:?}");
     }
 }
