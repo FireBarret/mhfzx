@@ -19,6 +19,7 @@
 // should degrade to "just empty" rather than break the page.
 
 import type { SkillBaseEntry } from '../data/schema'
+import type { CuffsEntry, PresetEntry, PresetSlot } from './presetPanel'
 
 const FAVORITES_KEY = 'mhfz.favorites'
 const SKILLSETS_KEY = 'mhfz.skillSets'
@@ -167,8 +168,8 @@ export interface SearchSessionState {
   job: string
   maxResults: number
   equipTypes?: string[]
-  presets?: Partial<Record<'head' | 'body' | 'arm' | 'waist' | 'leg' | 'weapon', { name: string; decorations: string[] }>>
-  cuffsPreset?: { clothesName: string; cuffNames: string[] }
+  presets?: Partial<Record<PresetSlot, PresetEntry>>
+  cuffsPreset?: CuffsEntry
   tagFilter?: string
 }
 

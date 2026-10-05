@@ -6,9 +6,9 @@
 // matching the original's results-list-on-the-left/detail-on-the-right
 // interaction (click a result row to inspect it).
 
-import type { EquipData, GameData, WeaponData, SkillBaseEntry } from '../data/schema'
+import type { EquipData, GameData, SkillBaseEntry } from '../data/schema'
 import { appState } from './appState'
-import { runSearch, type FoundSet, type JobFilter, type PiecePreset, type SearchPresets, type SearchTarget } from '../search'
+import { runSearch, type FoundSet, type JobFilter, type SearchTarget } from '../search'
 import {
   deleteSkillSet,
   getFavorites,
@@ -20,23 +20,22 @@ import {
   toggleFavorite,
   type SkillSet,
 } from './skillGroups'
-import { getAllTagNames, getItemNamesForTag, getTags } from './itemTags'
+import { getAllTagNames, getItemNamesForTag } from './itemTags'
 import { copyImageClipToClipboard, copyTextClipToClipboard, downloadImageClip } from './equipClip'
+import {
+  buildSearchPresets,
+  getPresetsState,
+  mountPresetsPanel,
+  presetsPanelMarkup,
+  refreshAllPresetPanels,
+  restorePresetsState,
+  setOnPresetsChanged,
+} from './presetPanel'
 
 interface TargetRow {
   skillName: string
   minPoint: number
 }
-
-type PresetSlot = 'head' | 'body' | 'arm' | 'waist' | 'leg' | 'weapon'
-const PRESET_SLOTS: { key: PresetSlot; label: string }[] = [
-  { key: 'weapon', label: 'Weapon' },
-  { key: 'head', label: 'Head' },
-  { key: 'body', label: 'Body' },
-  { key: 'arm', label: 'Arm' },
-  { key: 'waist', label: 'Waist' },
-  { key: 'leg', label: 'Leg' },
-]
 
 let targets: TargetRow[] = []
 let lastResults: FoundSet[] = []
@@ -44,22 +43,7 @@ let selectedIndex: number | null = null
 let expandedGroups = new Set<string>()
 let skillSearchText = ''
 let allowedEquipTypes = new Set<string>()
-let presets: Partial<Record<PresetSlot, { name: string; decorations: string[] }>> = {}
-let cuffsPreset: { clothesName: string; cuffNames: string[] } | undefined = undefined
 let tagFilter = ''
-/** Restricts the preset-slot piece/decoration pickers (the <datalist>
- * options behind each preset's text input) to items tagged with any of
- * these tags -- mirrors the original's EditEquipDialog tag-checklist
- * filter (decompiled source: a multi-check ListView of tags plus an
- * "include untagged" toggle). Empty set = unfiltered (show everything),
- * matching the original's default state. Session-only, not persisted --
- * a picker convenience, not search-affecting state. */
-let presetTagFilter = new Set<string>()
-// Defaults to false: checking a tag should narrow the picker down to just
-// that tag's items (the whole point of "only show what I already have"),
-// not quietly include the rest of the untagged dataset too. "+ untagged"
-// is an opt-in widen, not the default.
-let presetIncludeUntagged = false
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -254,6 +238,7 @@ function persistSearchSession(root: HTMLElement) {
   const jobSelect = root.querySelector<HTMLSelectElement>('#job-filter')
   const maxResultsInput = root.querySelector<HTMLInputElement>('#max-results')
   if (!jobSelect || !maxResultsInput) return // not yet rendered
+  const { presets, cuffsPreset } = getPresetsState()
   saveSearchSessionState({
     targets: targets.map((t) => ({ skillName: t.skillName, minPoint: t.minPoint })),
     job: jobSelect.value,
@@ -265,7 +250,7 @@ function persistSearchSession(root: HTMLElement) {
   })
 }
 
-// --- Equip-type filter, presets, and the "already have" tag filter ---
+// --- Equip-type filter and the "already have" tag filter ---
 
 /** The distinct `equipType` values actually present in the loaded armor
  * data (head/body/arm/waist/leg only -- weapons have no Type field in the
@@ -278,17 +263,6 @@ function equipTypesInData(gameData: GameData | null): string[] {
     types.add(piece.equipType)
   }
   return Array.from(types).sort((a, b) => a.localeCompare(b))
-}
-
-function armorPoolFor(gameData: GameData, slot: PresetSlot): EquipData[] | WeaponData[] {
-  switch (slot) {
-    case 'head': return gameData.head
-    case 'body': return gameData.body
-    case 'arm': return gameData.arm
-    case 'waist': return gameData.waist
-    case 'leg': return gameData.leg
-    case 'weapon': return gameData.weapons
-  }
 }
 
 function renderEquipTypeFilter(root: HTMLElement) {
@@ -322,183 +296,6 @@ export function renderTagFilter(root: HTMLElement) {
   select.innerHTML =
     '<option value="">All items</option>' + tagNames.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')
   select.value = tagFilter
-}
-
-function presetDatalistId(slot: PresetSlot): string {
-  return `preset-piece-list-${slot}`
-}
-
-/** Names allowed through the preset pickers given the current tag filter,
- * or `null` when unfiltered (no tags checked) -- mirrors
- * EditEquipDialog's `(hasNullTag && item.Tags.Count==0) || item.Tags.Any(checkedTags.Contains)`
- * filter predicate from the decompiled source. */
-function presetAllowedNames(allNames: string[]): Set<string> | null {
-  if (presetTagFilter.size === 0) return null
-  const allowed = new Set<string>()
-  for (const tag of presetTagFilter) {
-    for (const name of getItemNamesForTag(tag) ?? []) allowed.add(name)
-  }
-  if (presetIncludeUntagged) {
-    const taggedAnywhere = new Set(getTags().flatMap((t) => t.itemKeys))
-    for (const name of allNames) if (!taggedAnywhere.has(name)) allowed.add(name)
-  }
-  return allowed
-}
-
-/** Rebuilds just the preset pickers' <datalist> option sets (not the whole
- * table), so toggling the tag filter doesn't clobber whatever's already
- * typed into each preset's piece/decoration inputs. */
-function rebuildPresetDatalists(root: HTMLElement) {
-  const datalists = root.querySelector<HTMLDivElement>('#presets-datalists')!
-  const gameData = appState.gameData
-  if (!gameData) {
-    datalists.innerHTML = ''
-    return
-  }
-  const pieceDatalists = PRESET_SLOTS.map(({ key }) => {
-    const pool = armorPoolFor(gameData, key) as { name: string }[]
-    const allowed = presetAllowedNames(pool.map((p) => p.name))
-    const filtered = allowed ? pool.filter((p) => allowed.has(p.name)) : pool
-    return `<datalist id="${presetDatalistId(key)}">${filtered.map((p) => `<option value="${escapeHtml(p.name)}">`).join('')}</datalist>`
-  }).join('')
-  const jewelAllowed = presetAllowedNames(gameData.jewels.map((j) => j.name))
-  const filteredJewels = jewelAllowed ? gameData.jewels.filter((j) => jewelAllowed.has(j.name)) : gameData.jewels
-  const jewelDatalist = `<datalist id="preset-jewel-list">${filteredJewels.map((j) => `<option value="${escapeHtml(j.name)}">`).join('')}</datalist>`
-
-  const clothesDatalist = `<datalist id="preset-clothes-list">${gameData.clothes.map((c) => `<option value="${escapeHtml(c.name)}">`).join('')}</datalist>`
-  const cuffAllowed = presetAllowedNames(gameData.skillCuffs.map((c) => c.name))
-  const filteredCuffs = cuffAllowed ? gameData.skillCuffs.filter((c) => cuffAllowed.has(c.name)) : gameData.skillCuffs
-  const cuffDatalist = `<datalist id="preset-cuff-list">${filteredCuffs.map((c) => `<option value="${escapeHtml(c.name)}">`).join('')}</datalist>`
-
-  datalists.innerHTML = pieceDatalists + jewelDatalist + clothesDatalist + cuffDatalist
-}
-
-/** Exported for the same reason as `renderTagFilter`: tags change on the
- * Data Browser tab, so main.ts refreshes this when switching back. */
-export function renderPresetTagFilter(root: HTMLElement) {
-  const el = root.querySelector<HTMLDivElement>('#presets-tag-filter')!
-  const tagNames = getAllTagNames()
-  if (tagNames.length === 0) {
-    el.innerHTML = '<span class="skill-tier-note">Tag items in the Data Browser to filter these pickers to what you already have.</span>'
-    rebuildPresetDatalists(root)
-    return
-  }
-  el.innerHTML = [
-    '<span>Only show tagged:</span>',
-    ...tagNames.map(
-      (t) =>
-        `<label class="equip-type-option"><input type="checkbox" class="preset-tag-checkbox" value="${escapeHtml(t)}" ${presetTagFilter.has(t) ? 'checked' : ''}> ${escapeHtml(t)}</label>`,
-    ),
-    `<label class="equip-type-option"><input type="checkbox" id="preset-include-untagged" ${presetIncludeUntagged ? 'checked' : ''}> + untagged</label>`,
-  ].join('')
-  el.querySelectorAll<HTMLInputElement>('.preset-tag-checkbox').forEach((cb) => {
-    cb.addEventListener('change', () => {
-      if (cb.checked) presetTagFilter.add(cb.value)
-      else presetTagFilter.delete(cb.value)
-      rebuildPresetDatalists(root)
-    })
-  })
-  rebuildPresetDatalists(root)
-  el.querySelector<HTMLInputElement>('#preset-include-untagged')!.addEventListener('change', (e) => {
-    presetIncludeUntagged = (e.target as HTMLInputElement).checked
-    rebuildPresetDatalists(root)
-  })
-}
-
-function renderPresetsPanel(root: HTMLElement) {
-  const body = root.querySelector<HTMLTableSectionElement>('#presets-body')!
-
-  const armorRows = PRESET_SLOTS.map(({ key, label }) => {
-    const preset = presets[key]
-    return `<tr>
-      <td>${label}</td>
-      <td><input type="text" class="preset-piece-input" data-slot="${key}" list="${presetDatalistId(key)}" value="${escapeHtml(preset?.name ?? '')}" placeholder="(search picks)"></td>
-      <td><input type="text" class="preset-deco-input" data-slot="${key}" list="preset-jewel-list" value="${escapeHtml((preset?.decorations ?? []).join(', '))}" placeholder="decoration, decoration…"></td>
-      <td><button type="button" class="preset-clear-btn" data-slot="${key}" title="Clear this preset">✕</button></td>
-    </tr>`
-  }).join('')
-
-  // Skill Cuffs: a "clothes" item (the layered outfit granting 2 cuff
-  // slots) plus up to 2 cuffs to attach to it -- a separate row shape from
-  // the armor/weapon rows above since it's a two-part preset (Rust-side
-  // validates count/category/capacity/series restrictions; see
-  // resolve_cuffs_preset's doc comment).
-  const cuffsRow = `<tr>
-    <td>Skill Cuffs</td>
-    <td><input type="text" class="preset-clothes-input" list="preset-clothes-list" value="${escapeHtml(cuffsPreset?.clothesName ?? '')}" placeholder="clothes item"></td>
-    <td><input type="text" class="preset-cuffs-input" list="preset-cuff-list" value="${escapeHtml((cuffsPreset?.cuffNames ?? []).join(', '))}" placeholder="cuff, cuff (max 2)"></td>
-    <td><button type="button" class="preset-cuffs-clear-btn" title="Clear this preset">✕</button></td>
-  </tr>`
-
-  body.innerHTML = armorRows + cuffsRow
-
-  renderPresetTagFilter(root)
-  rebuildPresetDatalists(root)
-
-  body.querySelectorAll<HTMLInputElement>('.preset-piece-input').forEach((input) => {
-    input.addEventListener('change', () => {
-      const slot = input.dataset.slot as PresetSlot
-      const name = input.value.trim()
-      if (!name) {
-        delete presets[slot]
-      } else {
-        presets[slot] = { name, decorations: presets[slot]?.decorations ?? [] }
-      }
-      persistSearchSession(root)
-    })
-  })
-  body.querySelectorAll<HTMLInputElement>('.preset-deco-input').forEach((input) => {
-    input.addEventListener('change', () => {
-      const slot = input.dataset.slot as PresetSlot
-      const decorations = input.value
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-      if (presets[slot]) presets[slot]!.decorations = decorations
-      else if (decorations.length > 0) presets[slot] = { name: '', decorations }
-      persistSearchSession(root)
-    })
-  })
-  body.querySelectorAll<HTMLButtonElement>('.preset-clear-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      delete presets[btn.dataset.slot as PresetSlot]
-      renderPresetsPanel(root)
-      persistSearchSession(root)
-    })
-  })
-
-  const clothesInput = body.querySelector<HTMLInputElement>('.preset-clothes-input')!
-  const cuffsInput = body.querySelector<HTMLInputElement>('.preset-cuffs-input')!
-  clothesInput.addEventListener('change', () => {
-    const clothesName = clothesInput.value.trim()
-    if (!clothesName) cuffsPreset = undefined
-    else cuffsPreset = { clothesName, cuffNames: cuffsPreset?.cuffNames ?? [] }
-    persistSearchSession(root)
-  })
-  cuffsInput.addEventListener('change', () => {
-    const cuffNames = cuffsInput.value
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
-    if (cuffsPreset) cuffsPreset.cuffNames = cuffNames
-    else if (cuffNames.length > 0) cuffsPreset = { clothesName: '', cuffNames }
-    persistSearchSession(root)
-  })
-  body.querySelector<HTMLButtonElement>('.preset-cuffs-clear-btn')!.addEventListener('click', () => {
-    cuffsPreset = undefined
-    renderPresetsPanel(root)
-    persistSearchSession(root)
-  })
-}
-
-function buildSearchPresets(): SearchPresets | undefined {
-  const entries = Object.entries(presets).filter(([, v]) => v && v.name.trim().length > 0) as [PresetSlot, PiecePreset][]
-  const hasCuffs = cuffsPreset && cuffsPreset.clothesName.trim().length > 0
-  if (entries.length === 0 && !hasCuffs) return undefined
-  const result: SearchPresets = {}
-  for (const [slot, preset] of entries) result[slot] = preset
-  if (hasCuffs) result.cuffs = cuffsPreset
-  return result
 }
 
 /** Restricts the armor/weapon/jewel pools the search chooses from to items
@@ -671,17 +468,7 @@ export function renderSearchView(container: HTMLElement) {
         </fieldset>
       </div>
 
-      <fieldset class="presets-fieldset">
-        <legend>Preset Equipment (optional — fixes a piece and its decorations, search fills the rest)</legend>
-        <div id="presets-tag-filter" class="equip-type-filter"></div>
-        <div class="table-scroll" style="max-height:170px;">
-          <table>
-            <thead><tr><th>Slot</th><th>Piece</th><th>Decorations (comma-separated)</th><th></th></tr></thead>
-            <tbody id="presets-body"></tbody>
-          </table>
-        </div>
-        <div id="presets-datalists"></div>
-      </fieldset>
+      ${presetsPanelMarkup()}
 
       <div class="results-summary" id="results-summary">Load a data folder, then add target skills and start a search.</div>
 
@@ -744,10 +531,10 @@ export function renderSearchView(container: HTMLElement) {
     jobSelect.value = savedSession.job
     maxResultsInput.value = String(savedSession.maxResults)
     allowedEquipTypes = new Set(savedSession.equipTypes ?? [])
-    presets = { ...(savedSession.presets ?? {}) }
-    cuffsPreset = savedSession.cuffsPreset ? { ...savedSession.cuffsPreset } : undefined
+    restorePresetsState(savedSession)
     tagFilter = savedSession.tagFilter ?? ''
   }
+  setOnPresetsChanged(() => persistSearchSession(container))
 
   skillSearchInput.addEventListener('input', () => {
     skillSearchText = skillSearchInput.value
@@ -880,7 +667,7 @@ export function renderSearchView(container: HTMLElement) {
     renderSkillTree(container)
     renderTargetTable(container)
     renderEquipTypeFilter(container)
-    renderPresetsPanel(container)
+    refreshAllPresetPanels()
   })
   maybeSeedDefaultSkillSets(appState.gameData?.skillBase ?? [])
   renderSkillTree(container)
@@ -889,5 +676,5 @@ export function renderSearchView(container: HTMLElement) {
   renderDetailPanes(container)
   renderEquipTypeFilter(container)
   renderTagFilter(container)
-  renderPresetsPanel(container)
+  mountPresetsPanel(container, 'search')
 }

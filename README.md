@@ -88,18 +88,25 @@ skill category tree (real categories from `dat/SkillBase.xml`, Favorites,
 and saved Skill Sets), the Rust/WASM search engine, a results grid with
 master-detail drill-down, and a data browser.
 
-Also working: **preset equipment** (fix a specific piece — and up to 3 of
-its own decorations — for any of the 6 equip slots, plus a **skill cuffs**
-preset: a "clothes" item (`conf/Clothes.xml`) and up to 2 skill cuffs,
-validated against the real rules — max 2 attached, at most 1 Hiden, Normal
-cuffs' slots capped by the clothes' own capacity, S-restricted clothes
-blocking Power-family cuffs; the search fills everything else around all of
-this), an **armor-type filter** (Exotic/G Rank Armour/GS Armour/Origin/
-Tower/Zenith/Zenith (ZP), built from whatever's actually loaded), and
-**item tags** ("already have" tags on any armor/weapon/jewel/skill-cuff row
-in the Data Browser, with a "only use items tagged…" filter on the Search
-tab, and a matching tag filter on the preset pickers themselves — mirrors
-`EditEquipDialog`'s tag-checklist in the decompiled source). All three are
+Also working: **preset equipment** (`app/src/ui/presetPanel.ts`, shared
+between the Search and Data Browser tabs) — fix a specific piece, with up
+to 3 of its own decorations in their own columns, for any of the 6 equip
+slots, plus a **skill cuffs** preset: a "clothes" item (`conf/Clothes.xml`)
+and up to 2 skill cuffs, validated against the real rules (max 2 attached,
+at most 1 Hiden, Normal cuffs' slots capped by the clothes' own capacity,
+S-restricted clothes blocking Power-family cuffs). Each row has its own
+on/off tick: unticking keeps the piece/decorations saved but lets the
+search pick that slot freely again. Double-click a weapon/armor/skill-cuff/
+decoration row in the Data Browser to slot it in directly — click a preset
+row first to choose which slot a decoration goes to; every category's
+table has a "(blank)" row at the top to explicitly clear a slot. "Clear
+All" resets every preset at once. An **armor-type filter**
+(Exotic/G Rank Armour/GS Armour/Origin/Tower/Zenith/Zenith (ZP), built from
+whatever's actually loaded) and **item tags** ("already have" tags on any
+armor/weapon/jewel/skill-cuff row in the Data Browser, with a "only use
+items tagged…" filter on the Search tab, and a matching tag filter on the
+preset pickers themselves — mirrors `EditEquipDialog`'s tag-checklist in
+the decompiled source) round out the search conditions. All of this is
 localStorage-backed like Favorites/Skill Sets.
 
 Also working: the **equipment-clip export** (`app/src/ui/equipClip.ts`) —

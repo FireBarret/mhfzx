@@ -1,13 +1,13 @@
 :root {
   color-scheme: light;
-  font-family: Tahoma, 'Segoe UI', system-ui, sans-serif;
-  --face: #ece9d8;
-  --panel: #f1efe2;
-  --border-dark: #716f64;
-  --border-light: #fff;
-  --accent: #316ac5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --face: #f3f4f6;
+  --panel: #ffffff;
+  --border-dark: #d1d5db;
+  --border-light: #e5e7eb;
+  --accent: #2563eb;
   --accent-text: #fff;
-  --row-alt: #f4f6fb;
+  --row-alt: #f9fafb;
 }
 
 * {
@@ -28,26 +28,9 @@ body {
   height: 100vh;
 }
 
-/* --- Classic "raised" 3D bevel, the shared building block for buttons,
-   tabs and panels, so the whole app reads as one consistent desktop-app
-   chrome rather than flat modern elements dropped on a plain page. --- */
-.bevel-out {
-  border-top: 1px solid var(--border-light);
-  border-left: 1px solid var(--border-light);
-  border-right: 1px solid var(--border-dark);
-  border-bottom: 1px solid var(--border-dark);
-  background: var(--face);
-}
-
-.bevel-in {
-  border-top: 1px solid var(--border-dark);
-  border-left: 1px solid var(--border-dark);
-  border-right: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
-}
-
-/* --- Classic Windows menu bar: File/View/Tools/Help, matching the
-   original's menu row. Click a top-level item to open its dropdown. --- */
+/* --- Menu bar: File/View/Tools/Help, matching the original's menu row
+   layout (not its colors -- flat borders throughout, no fake-3D bevel).
+   Click a top-level item to open its dropdown. --- */
 .menu-bar {
   display: flex;
   align-items: center;
@@ -126,18 +109,19 @@ body {
   padding: 5px 18px;
   font-size: 12px;
   cursor: pointer;
-  background: #ddd9c7;
+  background: var(--face);
   border: 1px solid var(--border-dark);
   border-bottom: none;
-  border-radius: 2px 2px 0 0;
+  border-radius: 4px 4px 0 0;
   position: relative;
   top: 1px;
+  color: #374151;
 }
 
 .tab-button.active {
   background: #fff;
   font-weight: 600;
-  padding-top: 6px;
+  color: #111827;
 }
 
 .tab-panel {
@@ -161,9 +145,6 @@ thead th {
   position: sticky;
   top: 0;
   background: var(--face);
-  border-top: 1px solid var(--border-light);
-  border-left: 1px solid var(--border-light);
-  border-right: 1px solid var(--border-dark);
   border-bottom: 1px solid var(--border-dark);
   padding: 3px 7px;
   text-align: left;
@@ -171,11 +152,11 @@ thead th {
   cursor: default;
   user-select: none;
   font-weight: 600;
+  color: #374151;
 }
 
 tbody td {
-  border-bottom: 1px solid #ddd;
-  border-right: 1px solid #ddd;
+  border-bottom: 1px solid var(--row-alt);
   padding: 2px 7px;
   white-space: nowrap;
 }
@@ -185,7 +166,7 @@ tbody tr:nth-child(even) {
 }
 
 tbody tr:hover {
-  background: #d9e4fa;
+  background: #e0ecff;
 }
 
 .table-scroll {
@@ -199,19 +180,19 @@ button {
   font-size: 12px;
   padding: 4px 14px;
   cursor: pointer;
-  border-top: 1px solid var(--border-light);
-  border-left: 1px solid var(--border-light);
-  border-right: 1px solid var(--border-dark);
-  border-bottom: 1px solid var(--border-dark);
-  background: var(--face);
-  border-radius: 2px;
+  border: 1px solid var(--border-dark);
+  background: #fff;
+  border-radius: 4px;
+  color: #374151;
+}
+
+button:hover:not(:disabled) {
+  background: var(--row-alt);
+  border-color: #9ca3af;
 }
 
 button:active:not(:disabled) {
-  border-top: 1px solid var(--border-dark);
-  border-left: 1px solid var(--border-dark);
-  border-right: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
+  background: var(--border-light);
 }
 
 button:disabled {
@@ -220,33 +201,38 @@ button:disabled {
 }
 
 button.primary {
-  background: linear-gradient(to bottom, #4f8af0, #2a5fc7);
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
-  border-color: #1a3c8a;
+  border-color: var(--accent);
+}
+
+button.primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
 input, select {
   font-family: inherit;
   font-size: 12px;
   padding: 3px 5px;
-  border-top: 1px solid var(--border-dark);
-  border-left: 1px solid var(--border-dark);
-  border-right: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
+  border: 1px solid var(--border-dark);
   background: #fff;
-  border-radius: 1px;
+  border-radius: 4px;
+  color: #111827;
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 
 fieldset {
-  border-top: 1px solid var(--border-dark);
-  border-left: 1px solid var(--border-dark);
-  border-right: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
+  border: 1px solid var(--border-dark);
   margin: 0 0 10px 0;
   padding: 8px 10px 10px 10px;
   background: var(--panel);
-  border-radius: 2px;
+  border-radius: 6px;
 }
 
 legend {
@@ -308,6 +294,36 @@ legend {
   cursor: pointer;
 }
 
+.preset-clear-all-btn {
+  font-size: 10px;
+  padding: 1px 6px;
+  margin-left: 8px;
+}
+
+.preset-row {
+  cursor: pointer;
+}
+
+.preset-row.selected {
+  background: #dbe9ff !important;
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.preset-row.preset-disabled,
+tr.preset-disabled {
+  opacity: 0.5;
+}
+
+.data-row {
+  cursor: pointer;
+}
+
+.blank-row {
+  font-style: italic;
+  color: #6b7280;
+}
+
 .tags-input {
   width: 100%;
   box-sizing: border-box;
@@ -351,7 +367,7 @@ legend {
 }
 
 .skill-group-header:hover {
-  background: #e2dfce;
+  background: var(--row-alt);
 }
 
 .skill-leaf {
@@ -464,7 +480,9 @@ tbody tr.selected {
   display: flex;
   flex-direction: column;
   width: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 0 6px 0;
 }
 
 .data-browser-toolbar {
@@ -489,7 +507,7 @@ tbody tr.selected {
 .category-tab.active {
   background: var(--accent);
   color: var(--accent-text);
-  border-color: #1a3c8a;
+  border-color: var(--accent);
 }
 
 .empty-state {
