@@ -335,17 +335,46 @@ impl SearchState<'_> {
     }
 }
 
-/// A rough decoration-capacity estimate for the bound: total open-slot
-/// *units* across armor pieces not yet chosen, computed as
-/// `remaining_slot_count * 3` (the largest possible socket size) — a
-/// deliberately generous overestimate of achievable capacity, which keeps
-/// the bound admissible (never prunes a branch that could still succeed).
-fn remaining_decoration_capacity(chosen_count: usize) -> f64 {
-    ((5 - chosen_count) * 3) as f64
+/// A decoration-capacity estimate for the bound: total open-slot *units*
+/// across every piece that will end up equipped, both armor and weapon.
+///
+/// This must include capacity from pieces **already chosen** (depth
+/// `0..chosen_count`) as well as the weapon's own slots, not just a generic
+/// `3 * slots not yet chosen` estimate for the armor pieces still to pick —
+/// an earlier version counted only the latter, which made the bound shrink
+/// toward zero as recursion went deeper even though a chosen piece's real
+/// capacity (plus the weapon's) was still fully available for decorations
+/// placed at the leaf by `fill_decorations`. That under-count made the
+/// bound inadmissible (it could claim a reachable target was impossible),
+/// which was confirmed live: presetting a real, directly-relevant piece
+/// (e.g. a head granting +5 Strong Attack, Skill Slots Up+1, 3 slots) into
+/// a multi-target search returned "no sets found" in under a tenth of a
+/// second -- far too fast to be real node-budget exhaustion -- and
+/// temporarily forcing this function to return `true` immediately produced
+/// 20 valid results, confirming the bound (not a real infeasibility) was
+/// at fault.
+///
+/// Already-chosen pieces use their *actual* capacity (minus whatever a
+/// preset already reserved on that piece); not-yet-chosen armor slots keep
+/// the deliberately generous `3 per slot` overestimate (the real pieces
+/// aren't known yet, so the admissible bound is "as if every one of them
+/// turned out to be a full 3-capacity piece").
+fn remaining_decoration_capacity(state: &SearchState, chosen_count: usize, chosen: &[Option<&EquipData>; 5]) -> f64 {
+    let mut capacity: u32 = 0;
+    for (i, piece) in chosen.iter().enumerate().take(chosen_count) {
+        if let Some(piece) = piece {
+            capacity += best_level(piece).slot.saturating_sub(state.armor_reserved_capacity[i]) as u32;
+        }
+    }
+    capacity += ((5 - chosen_count) * 3) as u32;
+    if let Some(weapon) = state.weapon {
+        capacity += best_weapon_level(weapon).slot.saturating_sub(state.weapon_reserved_capacity) as u32;
+    }
+    capacity as f64
 }
 
-fn is_promising(state: &SearchState, chosen_count: usize, running: &[i32]) -> bool {
-    let capacity = remaining_decoration_capacity(chosen_count);
+fn is_promising(state: &SearchState, chosen_count: usize, chosen: &[Option<&EquipData>; 5], running: &[i32]) -> bool {
+    let capacity = remaining_decoration_capacity(state, chosen_count, chosen);
     for (i, target) in state.targets.iter().enumerate() {
         let deficit = target.min_point - running[i];
         if deficit <= 0 {
@@ -453,7 +482,7 @@ fn recurse<'a>(
         return;
     }
 
-    if !is_promising(state, chosen_count, running) {
+    if !is_promising(state, chosen_count, chosen, running) {
         return;
     }
 
@@ -1391,4 +1420,82 @@ mod tests {
             assert_eq!(r.head, "Allowed Type Head", "a disallowed-type piece must never be chosen: {:?}", r.head);
         }
     }
+
+    /// Regression test for a real false-negative bug found via a live
+    /// preset search (reported by the user: presetting a real, directly
+    /// relevant head piece into a multi-target search returned "no sets
+    /// found" in under 50ms -- far too fast for genuine node-budget
+    /// exhaustion). Root cause: `remaining_decoration_capacity`'s bound
+    /// only counted a generous `3 * slots not yet chosen` estimate for
+    /// armor, dropping both the *already-chosen* pieces' real capacity and
+    /// the weapon's own capacity entirely -- making the bound shrink to
+    /// near-zero deep in the recursion and incorrectly prune reachable
+    /// targets.
+    ///
+    /// This fixture needs the bug at a specific depth: head and the weapon
+    /// each have 3 slots; every other armor piece has 0. Reaching Attack+30
+    /// via decorations alone needs all 6 available slots (3+3) filled with
+    /// +5 jewels. By the time the old bound was evaluated before choosing
+    /// the 5th (leg) slot, it only credited 3 units of future armor
+    /// capacity (leg's generous estimate) plus zero for the already-chosen
+    /// head and the weapon -- 15 points of reachable decoration value
+    /// against a 30-point deficit -- an incorrect prune of a real solution.
+    #[test]
+    fn decoration_capacity_bound_counts_already_chosen_and_weapon_slots() {
+        let three_slot_head = armor("Three Slot Head", 50, 3, vec![]);
+        let no_slot_piece = armor("No Slot Piece", 50, 0, vec![]);
+        let weapon_with_slots = WeaponData {
+            name: "Three Slot Weapon".into(),
+            job: Job::Both,
+            sex: Sex::Both,
+            rare: 5,
+            elemental: Elemental { fire: 0, water: 0, thunder: 0, ice: 0, dragon: 0 },
+            levels: vec![LevelEntry {
+                level: 1,
+                def: None,
+                atk: Some(100),
+                slot: 3,
+                cost: Cost { money: 0, cost_type: Some(CostType::Create), items: vec![] },
+            }],
+            abilities: vec![],
+            skills: vec![],
+        };
+        let data = GameData {
+            head: vec![three_slot_head],
+            body: vec![no_slot_piece.clone()],
+            arm: vec![no_slot_piece.clone()],
+            waist: vec![no_slot_piece.clone()],
+            leg: vec![no_slot_piece],
+            weapons: vec![weapon_with_slots],
+            jewels: vec![jewel("Attack 1-Slot", 1, vec![("Attack", 5)])],
+            skill_cuffs: vec![],
+            // A custom skill base with a tier reachable at exactly 30 raw
+            // points -- attack_skill_base()'s highest option tops out at
+            // 20, which would cap the activated skill below the 30-point
+            // target regardless of the bound fix being tested here.
+            skill_base: vec![SkillBaseEntry {
+                no: 1,
+                id: "0001".into(),
+                name: "Attack".into(),
+                category: "Offense and Adren".into(),
+                skill_rank: false,
+                options: vec![SkillOption { name: "Attack +3".into(), point: 30 }],
+            }],
+            teni_skill_base: vec![],
+            ability_types: labels(),
+        };
+        let input = SearchInput {
+            // Only reachable by filling all 6 available slots (head's 3 +
+            // weapon's 3) with +5 jewels: 6 * 5 = 30.
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 30 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty(), "expected Attack+30 to be reachable via 6 decorations split across head and weapon");
+        assert_eq!(results[0].decorations.len(), 6);
+    }
 }
+
