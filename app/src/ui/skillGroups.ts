@@ -1,19 +1,26 @@
-// Favorites + Skill Sets — mirrors the original's "お気に入り" (Favorites)
-// and "スキルセット" (Skill Sets) tree groups (MHSX2.SkillBaseTreeView in the
+// Browser-persisted user state: Favorites, Skill Sets, and the in-progress
+// search session. All three use localStorage, not cookies -- cookies are
+// capped at ~4KB and sent to a server on every request, neither of which
+// fits a fully client-side app with no server to receive them; localStorage
+// is the correct tool for "remember this in the browser" here.
+//
+// Favorites + Skill Sets mirror the original's "お気に入り" (Favorites) and
+// "スキルセット" (Skill Sets) tree groups (MHSX2.SkillBaseTreeView in the
 // decompiled source): Favorites is a flat list of individually-starred
 // skill names; a Skill Set is a *named, saved* group of skills at their
 // exact tiers (so double-clicking one restores the precise configuration
-// you saved, not just the skill names at some default tier).
+// you saved, not just the skill names at some default tier). Backed by
+// localStorage rather than the user's setting.xml SkillSets/FavoriteSkills
+// (which this app doesn't load yet) -- a per-browser convenience store,
+// separate from the round-trip-critical settings.xml data layer.
 //
-// Backed by localStorage rather than the user's setting.xml SkillSets/
-// FavoriteSkills (which this app doesn't load yet) -- a per-browser
-// convenience store, separate from the round-trip-critical settings.xml
-// data layer. Every read/write is wrapped defensively: storage can throw or
-// come back empty (private browsing, cleared site data, etc.), and this
-// feature should degrade to "just empty" rather than break the page.
+// Every read/write is wrapped defensively: storage can throw or come back
+// empty (private browsing, cleared site data, etc.), and this feature
+// should degrade to "just empty" rather than break the page.
 
 const FAVORITES_KEY = 'mhfz.favorites'
 const SKILLSETS_KEY = 'mhfz.skillSets'
+const SEARCH_STATE_KEY = 'mhfz.searchState'
 
 export interface SkillSetEntry {
   skillName: string
@@ -72,4 +79,23 @@ export function deleteSkillSet(name: string): SkillSet[] {
   const next = getSkillSets().filter((s) => s.name !== name)
   writeJson(SKILLSETS_KEY, next)
   return next
+}
+
+/** The in-progress (not necessarily saved-as-a-Skill-Set) search state:
+ * current target list, job filter, and max-results, so closing and
+ * reopening the browser picks up right where you left off rather than
+ * starting from a blank search every time. Distinct from Skill Sets, which
+ * are deliberately-named, permanent saves. */
+export interface SearchSessionState {
+  targets: { skillName: string; minPoint: number }[]
+  job: string
+  maxResults: number
+}
+
+export function getSearchSessionState(): SearchSessionState | null {
+  return readJson<SearchSessionState | null>(SEARCH_STATE_KEY, null)
+}
+
+export function saveSearchSessionState(state: SearchSessionState): void {
+  writeJson(SEARCH_STATE_KEY, state)
 }

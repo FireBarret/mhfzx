@@ -9,7 +9,16 @@
 import type { EquipData, SkillBaseEntry } from '../data/schema'
 import { appState } from './appState'
 import { runSearch, type FoundSet, type JobFilter, type SearchTarget } from '../search'
-import { deleteSkillSet, getFavorites, getSkillSets, saveSkillSet, toggleFavorite, type SkillSet } from './skillGroups'
+import {
+  deleteSkillSet,
+  getFavorites,
+  getSearchSessionState,
+  getSkillSets,
+  saveSearchSessionState,
+  saveSkillSet,
+  toggleFavorite,
+  type SkillSet,
+} from './skillGroups'
 
 interface TargetRow {
   skillName: string
@@ -201,6 +210,24 @@ function renderTargetTable(root: HTMLElement) {
       renderTargetTable(root)
     })
   })
+
+  persistSearchSession(root)
+}
+
+/** Saves the current (in-progress, not-necessarily-named) target list, job
+ * filter, and max-results to localStorage so it survives closing and
+ * reopening the browser. Called from the one place every target-list
+ * mutation already funnels through (renderTargetTable), plus directly from
+ * the job/max-results inputs' own change handlers. */
+function persistSearchSession(root: HTMLElement) {
+  const jobSelect = root.querySelector<HTMLSelectElement>('#job-filter')
+  const maxResultsInput = root.querySelector<HTMLInputElement>('#max-results')
+  if (!jobSelect || !maxResultsInput) return // not yet rendered
+  saveSearchSessionState({
+    targets: targets.map((t) => ({ skillName: t.skillName, minPoint: t.minPoint })),
+    job: jobSelect.value,
+    maxResults: Number(maxResultsInput.value) || 20,
+  })
 }
 
 // --- Results grid + master-detail selection ---
@@ -386,10 +413,23 @@ export function renderSearchView(container: HTMLElement) {
   const skillSearchInput = container.querySelector<HTMLInputElement>('#skill-search')!
   const saveSkillSetBtn = container.querySelector<HTMLButtonElement>('#save-skillset-btn')!
 
+  // Restore whatever search state was left over from a previous browser
+  // session, before the first render of anything below reads `targets`/
+  // the job/max-results inputs.
+  const savedSession = getSearchSessionState()
+  if (savedSession) {
+    targets = savedSession.targets.map((t) => ({ skillName: t.skillName, minPoint: t.minPoint }))
+    jobSelect.value = savedSession.job
+    maxResultsInput.value = String(savedSession.maxResults)
+  }
+
   skillSearchInput.addEventListener('input', () => {
     skillSearchText = skillSearchInput.value
     renderSkillTree(container)
   })
+
+  jobSelect.addEventListener('change', () => persistSearchSession(container))
+  maxResultsInput.addEventListener('change', () => persistSearchSession(container))
 
   saveSkillSetBtn.addEventListener('click', (e) => {
     e.preventDefault() // it's inside a <legend>; don't let it toggle any ancestor <details>-like behavior
