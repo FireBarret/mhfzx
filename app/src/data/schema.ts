@@ -109,9 +109,18 @@ export interface JewelData {
 
 export type SkillCuffFamily = 'Power' | 'Skill' // <P> vs <S> section
 
+/** Mirrors the decompiled `SkillCuffCategory` enum: a "Hiden" (秘伝, class
+ * "(秘)") cuff is a special bonus slot that doesn't consume the clothes'
+ * own `slot` capacity at all (confirmed in the decompiled
+ * `PigClothes.GetFilledSlotNum`, which explicitly excludes Hiden cuffs from
+ * the capacity sum) — every other class is "Normal" and does consume it.
+ * Derived at import time from `class === '(秘)'`, not a separate XML field. */
+export type SkillCuffCategory = 'Normal' | 'Hiden'
+
 export interface SkillCuffData {
   name: EquipName
   family: SkillCuffFamily
+  category: SkillCuffCategory
   class: string // e.g. "(P)", "(S_辿)", "(秘)"
   rare: number
   slot: number
@@ -120,6 +129,21 @@ export interface SkillCuffData {
    * have more than one `<Cost>` sibling — see `JewelData.costs`). */
   costs: Cost[]
   abilities: Ability[]
+}
+
+/** conf/Clothes.xml: the "layered outfit" item a hunter wears to gain 2
+ * skill-cuff slots (decompiled `PigClothes`/`ClothesData`) -- a small,
+ * separate equip slot from the 5 armor pieces + weapon. `sRestricted` mirrors
+ * `ClothesData.SetableCuffSeriesType` (set from the XML's `Type="S"` vs
+ * `Type="P"` attribute, decompiled `BaseData.LoadClothes`): when true, only
+ * `family: 'Skill'` cuffs may be attached; `Type="P"` clothes (`sRestricted:
+ * false`) impose no family restriction at all (verified against
+ * `PigClothes.SetJewelry`'s `SetableCuffSeriesType != 0` check, where
+ * `SkillCuffSeriesType.P == 0`). */
+export interface ClothesData {
+  name: EquipName
+  slot: number
+  sRestricted: boolean
 }
 
 /** One rung of a SkillBase.xml `Option Name Point` ladder. */
@@ -218,6 +242,7 @@ export interface GameData {
   weapons: WeaponData[]
   jewels: JewelData[]
   skillCuffs: SkillCuffData[]
+  clothes: ClothesData[]
   skillBase: SkillBaseEntry[]
   teniSkillBase: TeniSkillTree[]
   abilityTypes: AbilityTypeLabels

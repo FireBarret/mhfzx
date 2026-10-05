@@ -1,0 +1,4 @@
+﻿<Clothes>
+	<Data Type="S" Slot="2">Clothes S Slot 2</Data>
+	<Data Type="P" Slot="2" Class="(課)">Clothes P Slot 2</Data>
+</Clothes>

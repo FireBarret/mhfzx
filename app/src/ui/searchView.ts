@@ -30,12 +30,12 @@ interface TargetRow {
 
 type PresetSlot = 'head' | 'body' | 'arm' | 'waist' | 'leg' | 'weapon'
 const PRESET_SLOTS: { key: PresetSlot; label: string }[] = [
+  { key: 'weapon', label: 'Weapon' },
   { key: 'head', label: 'Head' },
   { key: 'body', label: 'Body' },
   { key: 'arm', label: 'Arm' },
   { key: 'waist', label: 'Waist' },
   { key: 'leg', label: 'Leg' },
-  { key: 'weapon', label: 'Weapon' },
 ]
 
 let targets: TargetRow[] = []

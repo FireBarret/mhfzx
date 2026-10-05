@@ -18,6 +18,7 @@ const REQUIRED_SUFFIXES: Record<keyof GameDataSourceFiles, string> = {
   skillBase: '/dat/SkillBase.xml',
   teniSkillBase: '/dat/TeniSkillBase.xml',
   define: '/conf/Define.xml',
+  clothes: '/conf/Clothes.xml',
 }
 
 export class MissingFilesError extends Error {

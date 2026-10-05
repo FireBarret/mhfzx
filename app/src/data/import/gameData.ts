@@ -5,6 +5,7 @@
 // obtained is what makes it usable from both places unchanged.
 
 import type { GameData } from '../schema'
+import { parseClothesFile } from './clothes'
 import { parseDefineFile } from './define'
 import { parseEquipFile, parseWeaponFile } from './equip'
 import { parseJewelFile, parseSkillCuffFile } from './jewelCuff'
@@ -22,6 +23,7 @@ export interface GameDataSourceFiles {
   skillBase: string
   teniSkillBase: string
   define: string
+  clothes: string
 }
 
 export function assembleGameData(files: GameDataSourceFiles): GameData {
@@ -34,6 +36,7 @@ export function assembleGameData(files: GameDataSourceFiles): GameData {
     weapons: parseWeaponFile(files.weapon),
     jewels: parseJewelFile(files.jewel).normal,
     skillCuffs: parseSkillCuffFile(files.skillCuff),
+    clothes: parseClothesFile(files.clothes),
     skillBase: parseSkillBaseFile(files.skillBase),
     teniSkillBase: parseTeniSkillBaseFile(files.teniSkillBase),
     abilityTypes: parseDefineFile(files.define),

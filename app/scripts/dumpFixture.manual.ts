@@ -28,6 +28,7 @@ it('dumps the real GameData fixture', () => {
     skillBase: read('dat/SkillBase.xml'),
     teniSkillBase: read('dat/TeniSkillBase.xml'),
     define: read('conf/Define.xml'),
+    clothes: read('conf/Clothes.xml'),
   })
   writeFileSync('/Users/dariush/Projects/mhfz-set-searcher/rust-core/fixtures/real_game_data.json', JSON.stringify(gameData))
 })

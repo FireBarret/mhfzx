@@ -81,10 +81,14 @@ function parseJewelData(data: Record<string, unknown>): JewelData {
 }
 
 function parseSkillCuffData(data: Record<string, unknown>, family: SkillCuffFamily): SkillCuffData {
+  const cuffClass = attrStr(data, 'Class')
   return {
     name: attrStr(data, 'Name'),
     family,
-    class: attrStr(data, 'Class'),
+    // "(秘)" is the one real class value marking a Hiden (秘伝) cuff -- see
+    // schema.ts's SkillCuffCategory doc comment for what that changes.
+    category: cuffClass === '(秘)' ? 'Hiden' : 'Normal',
+    class: cuffClass,
     rare: attrNum(data, 'Rare'),
     slot: attrNum(data, 'Slot'),
     skills: parseSkills(data['Skills'] as Record<string, unknown>),

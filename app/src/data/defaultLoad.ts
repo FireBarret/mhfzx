@@ -1,10 +1,10 @@
 // Attempts to auto-load a bundled "default" dat/+conf/ data set from
-// public/default-data/ (gitignored -- each local checkout copies its own
-// copy there; see README) so the app is immediately usable on startup
-// without requiring "Load Data Folder" every time. Returns null (not a
-// thrown error) when the files aren't present, so a fresh clone or a future
-// GitHub Pages deploy without bundled data just falls back to the manual
-// folder picker silently.
+// public/default-data/ (committed to the repo, ships with both local builds
+// and the GitHub Pages deploy -- see README) so the app is immediately
+// usable on startup without requiring "Load Data Folder" every time.
+// Returns null (not a thrown error) when the files aren't present, so a
+// fork that removes the folder just falls back to the manual folder picker
+// silently.
 
 import { assembleGameData, type GameDataSourceFiles } from './import/gameData'
 import type { GameData } from './schema'
@@ -27,6 +27,7 @@ const DEFAULT_DATA_PATHS: Record<keyof GameDataSourceFiles, string> = {
   skillBase: `${BASE}default-data/dat/SkillBase.xml`,
   teniSkillBase: `${BASE}default-data/dat/TeniSkillBase.xml`,
   define: `${BASE}default-data/conf/Define.xml`,
+  clothes: `${BASE}default-data/conf/Clothes.xml`,
 }
 
 async function fetchText(path: string): Promise<string | null> {

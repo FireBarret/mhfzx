@@ -476,6 +476,7 @@ mod tests {
             weapons: vec![],
             jewels: vec![],
             skill_cuffs: vec![],
+            clothes: vec![],
             skill_base: vec![attack_skill_base()],
             teni_skill_base: vec![],
             ability_types: labels(),

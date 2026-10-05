@@ -31,6 +31,7 @@ describe('runSearch against real data through the actual wasm-bindgen boundary',
       skillBase: read('dat/SkillBase.xml'),
       teniSkillBase: read('dat/TeniSkillBase.xml'),
       define: read('conf/Define.xml'),
+      clothes: read('conf/Clothes.xml'),
     })
 
     const results = runSearch(gameData, {

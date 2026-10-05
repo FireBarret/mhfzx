@@ -6,7 +6,7 @@ import { appState } from './appState'
 import { getTagNamesForItem, setTagsForItem } from './itemTags'
 
 type Category = 'Head' | 'Body' | 'Arm' | 'Waist' | 'Leg' | 'Weapon' | 'Jewel' | 'SkillCuff'
-const CATEGORIES: Category[] = ['Head', 'Body', 'Arm', 'Waist', 'Leg', 'Weapon', 'Jewel', 'SkillCuff']
+const CATEGORIES: Category[] = ['Weapon', 'Head', 'Body', 'Arm', 'Waist', 'Leg', 'Jewel', 'SkillCuff']
 
 let activeCategory: Category = 'Head'
 let filterText = ''

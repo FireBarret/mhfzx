@@ -183,11 +183,25 @@ pub enum SkillCuffFamily {
     Skill, // <S> section
 }
 
+/// Mirrors the decompiled `SkillCuffCategory` enum: a "Hiden" (秘伝, class
+/// "(秘)") cuff is a special bonus slot that doesn't consume the clothes'
+/// own `slot` capacity at all (confirmed in the decompiled
+/// `PigClothes.GetFilledSlotNum`, which explicitly excludes Hiden cuffs
+/// from the capacity sum) — every other class is "Normal" and does consume
+/// it. Derived at import time from `class == "(秘)"`, not a separate XML
+/// field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SkillCuffCategory {
+    Normal,
+    Hiden,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillCuffData {
     pub name: EquipName,
     pub family: SkillCuffFamily,
+    pub category: SkillCuffCategory,
     pub class: String, // e.g. "(P)", "(S_辿)", "(秘)"
     pub rare: u8,
     pub slot: u8,
@@ -198,6 +212,23 @@ pub struct SkillCuffData {
     /// Carries Teni-tree (Skill Slots Up / スキル強化) and no-count-skill
     /// (スキル枠消費なし) entries — see docs/rules-spec.md §1/§4.
     pub abilities: Vec<Ability>,
+}
+
+/// conf/Clothes.xml: the "layered outfit" item a hunter wears to gain 2
+/// skill-cuff slots (decompiled `PigClothes`/`ClothesData`) -- a small,
+/// separate equip slot from the 5 armor pieces + weapon. `s_restricted`
+/// mirrors `ClothesData.SetableCuffSeriesType` (set from the XML's
+/// `Type="S"` vs `Type="P"` attribute, decompiled `BaseData.LoadClothes`):
+/// when true, only `family: Skill` cuffs may be attached; `Type="P"`
+/// clothes (`s_restricted: false`) impose no family restriction at all
+/// (verified against `PigClothes.SetJewelry`'s `SetableCuffSeriesType != 0`
+/// check, where `SkillCuffSeriesType::P == 0`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClothesData {
+    pub name: EquipName,
+    pub slot: u8,
+    pub s_restricted: bool,
 }
 
 /// One rung of a SkillBase.xml `<Option Name Point>` ladder.
@@ -275,6 +306,7 @@ pub struct GameData {
     pub weapons: Vec<WeaponData>,
     pub jewels: Vec<JewelData>,
     pub skill_cuffs: Vec<SkillCuffData>,
+    pub clothes: Vec<ClothesData>,
     pub skill_base: Vec<SkillBaseEntry>,
     pub teni_skill_base: Vec<TeniSkillTree>,
     pub ability_types: AbilityTypeLabels,

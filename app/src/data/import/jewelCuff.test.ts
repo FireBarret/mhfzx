@@ -93,6 +93,7 @@ describe('parseSkillCuffFile', () => {
     expect(cuff).toEqual({
       name: 'Artisan PA1',
       family: 'Power',
+      category: 'Normal',
       class: '(P)',
       rare: 5,
       slot: 2,

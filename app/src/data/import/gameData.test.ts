@@ -19,6 +19,7 @@ const gameData = assembleGameData({
   skillBase: read('dat/SkillBase.xml'),
   teniSkillBase: read('dat/TeniSkillBase.xml'),
   define: read('conf/Define.xml'),
+  clothes: read('conf/Clothes.xml'),
 })
 
 describe('assembleGameData against the real dat/ + conf/ files', () => {
@@ -33,6 +34,29 @@ describe('assembleGameData against the real dat/ + conf/ files', () => {
     expect(gameData.skillCuffs.length).toBeGreaterThan(1000)
     expect(gameData.skillBase.length).toBeGreaterThan(100)
     expect(gameData.teniSkillBase).toHaveLength(26)
+    expect(gameData.clothes.length).toBe(2)
+  })
+
+  it('derives SkillCuffData.category from the "(秘)" class marker', () => {
+    const hidenCuffs = gameData.skillCuffs.filter((c) => c.category === 'Hiden')
+    const normalCuffs = gameData.skillCuffs.filter((c) => c.category === 'Normal')
+    expect(hidenCuffs.length).toBeGreaterThan(0)
+    expect(normalCuffs.length).toBeGreaterThan(0)
+    expect(hidenCuffs.every((c) => c.class === '(秘)')).toBe(true)
+    expect(normalCuffs.every((c) => c.class !== '(秘)')).toBe(true)
+    // Hiden cuffs never consume the clothes' own slot capacity (decompiled
+    // PigClothes.GetFilledSlotNum excludes them) -- every real one has
+    // Slot="0", confirming this isn't a coincidence of the sample.
+    expect(hidenCuffs.every((c) => c.slot === 0)).toBe(true)
+  })
+
+  it('derives ClothesData.sRestricted from the Type attribute', () => {
+    const sClothes = gameData.clothes.find((c) => c.name === 'Clothes S Slot 2')
+    const pClothes = gameData.clothes.find((c) => c.name === 'Clothes P Slot 2')
+    expect(sClothes?.sRestricted).toBe(true)
+    expect(pClothes?.sRestricted).toBe(false)
+    expect(sClothes?.slot).toBe(2)
+    expect(pClothes?.slot).toBe(2)
   })
 
   // The original engine resolves every <Skills><Skill>Name</Skill> entry

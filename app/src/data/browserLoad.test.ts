@@ -35,6 +35,7 @@ function realFileList(): FileList {
     'dat/SkillBase.xml',
     'dat/TeniSkillBase.xml',
     'conf/Define.xml',
+    'conf/Clothes.xml',
     // A couple of irrelevant files that would also be present in a real
     // folder selection, to confirm the matcher ignores them correctly.
     'dat/Item.xml',
