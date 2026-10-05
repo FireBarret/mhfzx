@@ -14,6 +14,7 @@ import {
   getFavorites,
   getSearchSessionState,
   getSkillSets,
+  maybeSeedDefaultSkillSets,
   saveSearchSessionState,
   saveSkillSet,
   toggleFavorite,
@@ -492,9 +493,11 @@ export function renderSearchView(container: HTMLElement) {
   })
 
   appState.onDataLoaded(() => {
+    maybeSeedDefaultSkillSets(appState.gameData?.skillBase ?? [])
     renderSkillTree(container)
     renderTargetTable(container)
   })
+  maybeSeedDefaultSkillSets(appState.gameData?.skillBase ?? [])
   renderSkillTree(container)
   renderTargetTable(container)
   renderResultsTable(container)

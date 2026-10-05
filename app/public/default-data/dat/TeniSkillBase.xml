@@ -1,0 +1,108 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Skill>
+  <SkillType TypeName="辿異スキル">
+    <SkillTree No="1" ID="0010" Name="Skill Slots Up">
+      <Skill Point="7">Skill Slots Up+7</Skill>
+      <Skill Point="6">Skill Slots Up+6</Skill>
+      <Skill Point="5">Skill Slots Up+5</Skill>
+      <Skill Point="4">Skill Slots Up+4</Skill>
+      <Skill Point="3">Skill Slots Up+3</Skill>
+      <Skill Point="2">Skill Slots Up+2</Skill>
+      <Skill Point="1">Skill Slots Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="2" ID="0020" Name="Critical Conversion Up" Target="Crit Conversion">
+      <Skill Point="2">Critical Conversion Up+2</Skill>
+      <Skill Point="1">Critical Conversion Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="3" ID="0030" Name="Stylish Assault Up" Target="Stylish Assault">
+      <Skill Point="2">Stylish Assault Up+2</Skill>
+      <Skill Point="1">Stylish Assault Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="4" ID="0040" Name="Dissolver Up" Target="Dissolver">
+      <Skill Point="1">Dissolver Up</Skill>
+    </SkillTree>
+    <SkillTree No="5" ID="0050" Name="Thunder Clad Up" Target="Thunder Clad">
+      <Skill Point="2">Thunder Clad Up+2</Skill>
+      <Skill Point="1">Thunder Clad Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="6" ID="0060" Name="Ice Age Up" Target="Ice Age">
+      <Skill Point="1">Ice Age Up</Skill>
+    </SkillTree>
+    <SkillTree No="7" ID="0070" Name="Hearing Protection Up" Target="Hearing Protection">
+      <Skill Point="3">Hearing Protection Up+3</Skill>
+      <Skill Point="2">Hearing Protection Up+2</Skill>
+      <Skill Point="1">Hearing Protection Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="8" ID="0080" Name="Wind Res Up" Target="Wind Pressure">
+      <Skill Point="4">Wind Res Up+4</Skill>
+      <Skill Point="3">Wind Res Up+3</Skill>
+      <Skill Point="2">Wind Res Up+2</Skill>
+      <Skill Point="1">Wind Res Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="9" ID="0090" Name="Quake Res Up" Target="Quake Res">
+      <Skill Point="2">Quake Res Up+2</Skill>
+      <Skill Point="1">Quake Res Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="10" ID="0100" Name="Poison Res Up" Target="Poison Res">
+      <Skill Point="2">Poison Res Up+2</Skill>
+      <Skill Point="1">Poison Res Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="11" ID="0110" Name="Paralysis Res Up" Target="Paralysis Res">
+      <Skill Point="2">Paralysis Res Up+2</Skill>
+      <Skill Point="1">Paralysis Res Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="12" ID="0120" Name="Sleep Res Up" Target="Sleep Res">
+      <Skill Point="2">Sleep Res Up+2</Skill>
+      <Skill Point="1">Sleep Res Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="13" ID="0130" Name="Vampirism Up" Target="Vampirism">
+      <Skill Point="1">Vampirism Up+1</Skill>
+      <Skill Point="2">Vampirism Up+2</Skill>
+    </SkillTree>
+    <SkillTree No="14" ID="0140" Name="Drug Knowledge Up" Target="Drug Knowledge">
+      <Skill Point="1">Drug Knowledge Up</Skill>
+    </SkillTree>
+    <SkillTree No="15" ID="0150" Name="Assistance Up" Target="Assistance">
+      <Skill Point="1">Assistance Up</Skill>
+    </SkillTree>
+    <SkillTree No="16" ID="0160" Name="Bullet Saver Up" Target="Bullet Saver">
+      <Skill Point="2">Bullet Saver Up+2</Skill>
+      <Skill Point="1">Bullet Saver Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="17" ID="0170" Name="Guard Up" Target="Guard">
+      <Skill Point="2">Guard Up+2</Skill>
+      <Skill Point="1">Guard Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="18" ID="0180" Name="Adaptation Up" Target="Adaptation">
+      <Skill Point="2">Adaptation Up+2</Skill>
+      <Skill Point="1">Adaptation Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="19" ID="0190" Name="Encourage Up" Target="Encourage">
+      <Skill Point="2">Encourage Up+2</Skill>
+      <Skill Point="1">Encourage Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="20" ID="0200" Name="Reflect Up" Target="Reflect">
+      <Skill Point="3">Reflect Up+3</Skill>
+      <Skill Point="2">Reflect Up+2</Skill>
+      <Skill Point="1">Reflect Up+1</Skill>
+    </SkillTree>
+    <SkillTree No="21" ID="0210" Name="Stylish Up" Target="Stylish">
+      <Skill Point="1">Stylish Up</Skill>
+    </SkillTree>
+    <SkillTree No="22" ID="0220" Name="Vigorous Up" Target="Vigorous">
+      <Skill Point="1">Vigorous Up</Skill>
+    </SkillTree>
+    <SkillTree No="23" ID="0230" Name="Obscurity Up" Target="Obscurity">
+      <Skill Point="1">Obscurity Up</Skill>
+    </SkillTree>
+    <SkillTree No="24" ID="0240" Name="Soul Up" Target="Reinforcement">
+      <Skill Point="1">Soul Up</Skill>
+    </SkillTree>
+    <SkillTree No="25" ID="0250" Name="Rush Up" Target="Rush">
+      <Skill Point="1">Rush Up</Skill>
+    </SkillTree>
+    <SkillTree No="26" ID="0260" Name="Ceaseless Up" Target="Ceaseless">
+      <Skill Point="1">Ceaseless Up</Skill>
+    </SkillTree>
+  </SkillType>
+</Skill>

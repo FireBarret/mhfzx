@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wepon>
+  <normal>
+    <Data Name="Weapon(Eating)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル発動">Speed Eater</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(SkillSlots+1)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="Skill Slots Up">Skill Slots Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Dissolver)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Dissolver Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(DrugKnowledge)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Drug Knowledge Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Vampirism)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Vampirism Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(CritConv)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Critical Conversion Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(StylishAss)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Stylish Assault Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(ThunderClad)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Thunder Clad Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Encourage)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Encourage Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Hearing)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Hearing Protection Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(WindRes)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Wind Res Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(IceAge)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Ice Age Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Guard)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Guard Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(QuakeRes)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Quake Res Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Assistance)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Assistance Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(PoisonRes)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Poison Res Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(ParalysisRes)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Paralysis Res Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(SleepRes)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Sleep Res Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(BulletSaver)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Bullet Saver Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Adaptation)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Adaptation Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Reflect)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Reflect Up+1</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Stylish)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Stylish Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Vigorous)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Vigorous Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Obscurity)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Obscurity Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Soul)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Soul Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Rush)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Rush Up</Ability>
+      </Abilities>
+    </Data>
+    <Data Name="Weapon(Ceaseless)" Sex="共" Job="共" Rare="1">
+      <Elemental Fire="0" Water="0" Thunder="0" Ice="0" Dragon="0" />
+      <Level>
+        <L1 Atk="0" Slot="3">
+          <Cost Money="0" />
+        </L1>
+      </Level>
+      <Abilities>
+        <Ability Type="スキル強化">Ceaseless Up</Ability>
+      </Abilities>
+    </Data>
+  </normal>
+</Wepon>

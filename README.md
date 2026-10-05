@@ -46,13 +46,15 @@ npm run dev      # dev server — do NOT open dist/index.html via file://,
 npm run build    # production build to app/dist/
 ```
 
-### Default data (optional, local convenience)
+### Default data
 
 The app always supports **File > Load Data Folder…** (select the original
 app's root folder, the one containing `dat/` and `conf/` directly) to load
-data for that session. To skip that step and have the app auto-load on
-startup, copy your own `dat/*.xml` + `conf/Define.xml` into
-`app/public/default-data/` matching this layout:
+data for that session. `app/public/default-data/` bundles a copy of this
+community data so the app auto-loads on startup with no manual step — it's
+committed to the repo and ships with both local builds and the GitHub Pages
+deploy. To refresh it with a newer `dat/`/`conf/` revision, overwrite the
+files in place matching this layout:
 
 ```
 app/public/default-data/
@@ -61,10 +63,8 @@ app/public/default-data/
 └── conf/Define.xml
 ```
 
-This folder is gitignored — it's never committed or redistributed through
-the repo; each checkout provides its own copy. If it's absent (e.g. a fresh
-clone, or a future public deploy without bundled data), the app just falls
-back to the manual folder picker with no error.
+If this folder is ever absent (e.g. a fork that removes it), the app just
+falls back to the manual folder picker with no error.
 
 ### Diagnostics
 

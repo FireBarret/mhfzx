@@ -1,0 +1,1326 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Skill>
+  <SkillType TypeName="Health and Stamina">
+    <Data No="31" ID="0950" Name="Health" SkillRank="1">
+      <Option Name="Health +50" Point="40" />
+      <Option Name="Health +40" Point="30" />
+      <Option Name="Health +30" Point="20" />
+      <Option Name="Health +20" Point="15" />
+      <Option Name="Health +10" Point="10" />
+      <Option Name="Health -10" Point="-10" />
+      <Option Name="Health -20" Point="-15" />
+      <Option Name="Health -30" Point="-20" />
+    </Data>
+    <Data No="7" ID="0960" Name="Recovery Speed" SkillRank="1">
+      <Option Name="Recovery Speed +2" Point="20" />
+      <Option Name="Recovery Speed +1" Point="10" />
+      <Option Name="Recovery Speed -1" Point="-10" />
+      <Option Name="Recovery Speed -2" Point="-20" />
+    </Data>
+    <Data No="6" ID="1480" Name="Recovery">
+      <Option Name="Recovery Items Up" Point="10" />
+      <Option Name="Recovery Items Down" Point="-10" />
+    </Data>
+    <Data No="183" ID="0610" Name="Vampirism">
+      <Option Name="Vampirism+2" Point="20" />
+      <Option Name="Vampirism+1" Point="10" />
+    </Data>
+    <Data No="186" ID="0660" Name="Herbal Science">
+      <Option Name="Herbal Science" Point="10" />
+    </Data>
+    <Data No="143" ID="0800" Name="Stamina Recovery" SkillRank="1">
+      <Option Name="Stamina Recovery Up (L)" Point="20" />
+      <Option Name="Stamina Recovery Up (S)" Point="10" />
+      <Option Name="Stamina Recovery Down" Point="-10" />
+    </Data>
+    <Data No="51" ID="1230" Name="Hunger" SkillRank="1">
+      <Option Name="Hunger Negated" Point="15" />
+      <Option Name="Hunger Halved" Point="10" />
+      <Option Name="Hunger Up (S)" Point="-10" />
+      <Option Name="Hunger Up (L)" Point="-15" />
+    </Data>
+    <Data No="67" ID="1560" Name="Stamina" SkillRank="1">
+      <Option Name="Runner +2" Point="20" />
+      <Option Name="Runner +1" Point="10" />
+      <Option Name="Runner -1" Point="-10" />
+    </Data>
+    <Data No="71" ID="1600" Name="Eating">
+      <Option Name="Speed Eater" Point="10" />
+      <Option Name="Slow Eater" Point="-10" />
+    </Data>
+    <Data No="16" ID="1240" Name="Gluttony">
+      <Option Name="Gluttony +2" Point="15" />
+      <Option Name="Gluttony +1" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Offense and Adren">
+    <Data No="161" ID="0160" Name="Strong Attack">
+      <Option Name="Strong Attack +6" Point="50">
+        <DeactivateSkills>
+          <Skill Name="Attack Up (XXL)" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Strong Attack +5" Point="40">
+        <DeactivateSkills>
+          <Skill Name="Attack Up (XXL)" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Strong Attack +4" Point="30">
+        <DeactivateSkills>
+          <Skill Name="Attack Up (XXL)" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Strong Attack +3" Point="20">
+        <DeactivateSkills>
+          <Skill Name="Attack Up (XXL)" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Strong Attack +2" Point="15">
+        <DeactivateSkills>
+          <Skill Name="Attack Up (XL)" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Strong Attack +1" Point="10">
+        <DeactivateSkills>
+          <Skill Name="Attack Up (L)" />
+        </DeactivateSkills>
+      </Option>
+    </Data>
+    <Data No="21" ID="1250" Name="Attack" SkillRank="1">
+      <Option Name="Attack Up (XXL)" Point="80">
+        <DeactivateSkills>
+          <Skill Name="Strong Attack +2" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Attack Up (XL)" Point="50">
+        <DeactivateSkills>
+          <Skill Name="Strong Attack +1" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="Attack Up (L)" Point="25" />
+      <Option Name="Attack Up (M)" Point="15" />
+      <Option Name="Attack Up (S)" Point="10" />
+    </Data>
+    <Data No="155" ID="0400" Name="Lone Wolf">
+      <Option Name="Lone Wolf" Point="10" />
+    </Data>
+    <Data No="169" ID="0170" Name="Issen">
+      <Option Name="Issen +3" Point="30" />
+      <Option Name="Issen +2" Point="20" />
+      <Option Name="Issen +1" Point="10" />
+    </Data>
+    <Data No="18" ID="1000" Name="Expert" SkillRank="1">
+      <Option Name="Expert +5" Point="50" />
+      <Option Name="Expert +4" Point="35" />
+      <Option Name="Expert +3" Point="20" />
+      <Option Name="Expert +2" Point="15" />
+      <Option Name="Expert +1" Point="10" />
+    </Data>
+    <Data No="205" ID="1010" Name="Crit Conversion">
+      <Option Name="Crit Conversion" Point="10" />
+    </Data>
+    <Data No="173" ID="0190" Name="Exploit Weakness">
+      <Option Name="Exploit Weakness" Point="15" />
+      <Option Name="Reduce Weakness" Point="-10" />
+    </Data>
+    <Data No="207" ID="0720" Name="Stylish Assault">
+      <Option Name="Stylish Assault" Point="15" />
+    </Data>
+    <Data No="197" ID="0200" Name="Dissolver">
+      <Option Name="Elemental Exploit" Point="10" />
+      <Option Name="Elemental Diffusion" Point="-10" />
+    </Data>
+    <Data No="202" ID="0710" Name="Status Assault">
+      <Option Name="Status Assault" Point="10" />
+    </Data>
+    <Data No="190" ID="0700" Name="Drug Knowledge">
+      <Option Name="Drug Knowledge" Point="10" />
+    </Data>
+    <Data No="47" ID="1210" Name="Status Attack">
+      <Option Name="Status Attack Up" Point="10" />
+    </Data>
+    <Data No="220" ID="0690" Name="Abnormality">
+      <Option Name="Abnormality" Point="15">
+        <ContainedSkills>
+          <Skill Name="Status Assault" />
+          <Skill Name="Drug Knowledge" />
+          <Skill Name="Status Attack Up" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="50" ID="1220" Name="Bomb Boost">
+      <Option Name="Bomb Boost" Point="10" />
+    </Data>
+    <Data No="81" ID="1660" Name="Gunnery" SkillRank="1">
+      <Option Name="Gunnery God" Point="35" />
+      <Option Name="Gunnery Expert" Point="20" />
+      <Option Name="Gunnery" Point="10" />
+    </Data>
+    <Data No="162" ID="0330" Name="Encourage">
+      <Option Name="Encourage +2" Point="20">
+        <ContainedSkills>
+          <Skill Name="Flute Expert" />
+          <Skill Name="Evasion +2" />
+          <Skill Name="Stun Negated" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Encourage +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Flute Expert" />
+          <Skill Name="Evasion +1" />
+          <Skill Name="Stun Halved" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="85" ID="1670" Name="Flute Expert">
+      <Option Name="Flute Expert" Point="10" />
+    </Data>
+    <Data No="91" ID="1690" Name="Martial Arts" SkillRank="1">
+      <Option Name="Martial Arts +2" Point="20" />
+      <Option Name="Martial Arts" Point="10" />
+    </Data>
+    <Data No="170" ID="0480" Name="Survivor">
+      <Option Name="Tenacity" Point="20" />
+      <Option Name="Fortify" Point="10" />
+    </Data>
+    <Data No="165" ID="0450" Name="Rage">
+      <Option Name="Rage +2" Point="20">
+        <ContainedSkills>
+          <Skill Name="True Guts" />
+          <Skill Name="Adrenaline +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Rage +1" Point="15">
+        <ContainedSkills>
+          <Skill Name="True Guts" />
+          <Skill Name="Adrenaline +1" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="65" ID="1540" Name="Adrenaline">
+      <Option Name="Worry (30)" Point="30" />
+      <Option Name="Adrenaline +1 (21)" Point="21" />
+      <Option Name="Adrenaline +2" Point="15" />
+      <Option Name="Adrenaline +1" Point="10" />
+      <Option Name="Worry" Point="-15" />
+    </Data>
+    <Data No="217" ID="0430" Name="Skilled">
+      <Option Name="Skilled" Point="15">
+        <ContainedSkills>
+          <Skill Name="Speed Eater" />
+          <Skill Name="Movement Speed +2" />
+          <Skill Name="Weapon Handling" />
+          <Skill Name="True Guts" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="222" ID="0440" Name="Trained">
+      <Option Name="Trained +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Focus +2" />
+          <Skill Name="Martial Arts +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Trained +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Focus +1" />
+          <Skill Name="Martial Arts" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="116" ID="1840" Name="Fasting">
+      <Option Name="Starving Wolf +2" Point="20" />
+      <Option Name="Starving Wolf +1" Point="10" />
+    </Data>
+    <Data No="128" ID="1940" Name="Focus" SkillRank="1">
+      <Option Name="Focus +2" Point="20" />
+      <Option Name="Focus +1" Point="10" />
+      <Option Name="Distraction" Point="-10" />
+    </Data>
+    <Data No="179" ID="0570" Name="Charge Attack Up">
+      <Option Name="Charge Attack Up +2" Point="20" />
+      <Option Name="Charge Attack Up +1" Point="10" />
+    </Data>
+    <Data No="141" ID="0780" Name="Weapon Handling">
+      <Option Name="Weapon Handling" Point="10" />
+    </Data>
+    <Data No="154" ID="0390" Name="Shiriagari">
+      <Option Name="Shiriagari" Point="15" />
+    </Data>
+    <Data No="184" ID="0620" Name="Adaptation">
+      <Option Name="Adaptation +2" Point="20" />
+      <Option Name="Adaptation +1" Point="10" />
+    </Data>
+    <Data No="198" ID="0760" Name="Combat Supremacy">
+      <Option Name="Combat Supremacy" Point="10" />
+    </Data>
+    <Data No="199" ID="0640" Name="Vigorous">
+      <Option Name="Vigorous" Point="10" />
+    </Data>
+    <Data No="201" ID="0210" Name="Thunder Clad">
+      <Option Name="Thunder Clad" Point="10" />
+    </Data>
+    <Data No="210" ID="0970" Name="Lavish Attack">
+      <Option Name="Consumption Slayer" Point="10" />
+    </Data>
+    <Data No="214" ID="1040" Name="Obscurity">
+      <Option Name="Obscurity" Point="10" />
+    </Data>
+    <Data No="216" ID="0220" Name="Rush">
+      <Option Name="Rush" Point="10" />
+    </Data>
+    <Data No="218" ID="1020" Name="Ceaseless">
+      <Option Name="Ceaseless" Point="10" />
+    </Data>
+    <Data No="219" ID="0270" Name="Point Breakthrough">
+      <Option Name="Point Breakthrough" Point="10" />
+    </Data>
+    <Data No="223" ID="0180" Name="Furious">
+      <Option Name="Furious" Point="10" />
+    </Data>
+    <Data No="206" ID="0150" Name="Determination">
+      <Option Name="Solid Determination" Point="10">
+        <ContainedSkills>
+          <Skill Name="Adrenaline +2" />
+          <Skill Name="Sharpness +1" />
+        </ContainedSkills>
+        <DeactivateSkills>
+          <Skill Name="Strong Attack +4" />
+          <Skill Name="Attack Up (XXL)" />
+          <Skill Name="True Guts" />
+          <Skill Name="Absolute Defense" />
+          <Skill Name="Exploit Weakness" />
+          <Skill Name="Elemental Exploit" />
+          <Skill Name="Critical Shot +3" />
+          <Skill Name="Expert +5" />
+          <Skill Name="Edgemaster +3" />
+          <Skill Name="Issen +3" />
+          <Skill Name="Rage +2" />
+        </DeactivateSkills>
+      </Option>
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Elemental Attack">
+    <Data No="111" ID="1790" Name="Fire Attack" SkillRank="1">
+      <Option Name="Fire Attack (L)" Point="20" />
+      <Option Name="Fire Attack (S)" Point="10" />
+    </Data>
+    <Data No="112" ID="1800" Name="Water Attack" SkillRank="1">
+      <Option Name="Water Attack (L)" Point="20" />
+      <Option Name="Water Attack (S)" Point="10" />
+    </Data>
+    <Data No="113" ID="1810" Name="Thunder Attack" SkillRank="1">
+      <Option Name="Thunder Attack (L)" Point="20" />
+      <Option Name="Thunder Attack (S)" Point="10" />
+    </Data>
+    <Data No="114" ID="1820" Name="Ice Attack" SkillRank="1">
+      <Option Name="Ice Attack (L)" Point="20" />
+      <Option Name="Ice Attack (S)" Point="10" />
+    </Data>
+    <Data No="115" ID="1830" Name="Dragon Attack" SkillRank="1">
+      <Option Name="Dragon Attack (L)" Point="20" />
+      <Option Name="Dragon Attack (S)" Point="10" />
+    </Data>
+    <Data No="142" ID="0790" Name="Elemental Attack">
+      <Option Name="Elemental Attack Up" Point="10" />
+      <Option Name="Elemental Attack Down" Point="-10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Guard and Defense">
+    <Data No="164" ID="0420" Name="Vitality">
+      <Option Name="Vitality +3" Point="30">
+        <ContainedSkills>
+          <Skill Name="Recovery Speed +2" />
+          <Skill Name="Recovery Items Up" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Vitality +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Recovery Speed +1" />
+          <Skill Name="Recovery Items Up" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Vitality +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Recovery Speed +1" />
+          <Skill Name="Recovery Items Up" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Vitality -1" Point="-10">
+        <ContainedSkills>
+          <Skill Name="Health -10" />
+          <Skill Name="Recovery Items Down" />
+          <Skill Name="Recovery Speed -1" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="157" ID="0310" Name="Reflect">
+      <Option Name="Reflect +3" Point="20" />
+      <Option Name="Reflect +2" Point="15" />
+      <Option Name="Reflect +1" Point="10" />
+    </Data>
+    <Data No="56" ID="1260" Name="Defense" SkillRank="1">
+      <Option Name="Defense +120" Point="45" />
+      <Option Name="Defense +90" Point="35" />
+      <Option Name="Defense +60" Point="25" />
+      <Option Name="Defense +30" Point="15" />
+      <Option Name="Defense +20" Point="10" />
+      <Option Name="Defense -20" Point="-10" />
+      <Option Name="Defense -30" Point="-15" />
+      <Option Name="Defense -40" Point="-20" />
+    </Data>
+    <Data No="212" ID="1050" Name="Fortification">
+      <Option Name="Fortification +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Guard +2" />
+          <Skill Name="Runner +2" />
+          <Skill Name="Weapon Handling" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Fortification +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Guard +1" />
+          <Skill Name="Runner +1" />
+          <Skill Name="Weapon Handling" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="5" ID="1060" Name="Guard" SkillRank="1">
+      <Option Name="Guard +2" Point="20" />
+      <Option Name="Guard +1" Point="10" />
+      <Option Name="Guard -1" Point="-10" />
+      <Option Name="Guard -2" Point="-15" />
+    </Data>
+    <Data No="4" ID="1070" Name="Auto-Guard">
+      <Option Name="Auto-Guard" Point="10" />
+    </Data>
+    <Data No="90" ID="1680" Name="Breakout">
+      <Option Name="Breakout" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Blademaster">
+    <Data No="45" ID="1030" Name="Sharpening" SkillRank="1">
+      <Option Name="Sharpening Artisan" Point="20" />
+      <Option Name="Speed Sharpening" Point="10" />
+      <Option Name="Sharpening Speed Down" Point="-10" />
+    </Data>
+    <Data No="15" ID="0980" Name="Sharpness" SkillRank="1">
+      <Option Name="Sharp Sword +2" Point="20" />
+      <Option Name="Sharp Sword +1" Point="10" />
+      <Option Name="Blunt Blade" Point="-10" />
+    </Data>
+    <Data No="194" ID="0730" Name="Stylish">
+      <Option Name="Stylish" Point="15" />
+    </Data>
+    <Data No="159" ID="0250" Name="Edgemaster">
+      <Option Name="Edgemaster +3" Point="20">
+        <ContainedSkills>
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Attack Up (XXL)" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Edgemaster +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Attack Up (XL)" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Edgemaster +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Attack Up (L)" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="32" ID="0990" Name="Artisan">
+      <Option Name="Sharpness +1" Point="10" />
+    </Data>
+    <Data No="147" ID="0840" Name="Fencing" SkillRank="1">
+      <Option Name="Fencing +2" Point="20" />
+      <Option Name="Fencing +1" Point="10" />
+    </Data>
+    <Data No="200" ID="0240" Name="Sword God">
+      <Option Name="Sword God +3" Point="25">
+        <ContainedSkills>
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Sharp Sword +2" />
+          <Skill Name="Fencing +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Sword God +2" Point="20">
+        <ContainedSkills>
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Sharp Sword +2" />
+          <Skill Name="Fencing +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Sword God +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Sharp Sword +1" />
+          <Skill Name="Fencing +1" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Sword Crystals">
+    <Data No="118" ID="1850" Name="Bomb Sword" SkillRank="1">
+      <Option Name="Bomb Sword +3" Point="20" />
+      <Option Name="Bomb Sword +2" Point="15" />
+      <Option Name="Bomb Sword +1" Point="10" />
+    </Data>
+    <Data No="120" ID="1860" Name="Poison Sword" SkillRank="1">
+      <Option Name="Poison Sword +3" Point="20" />
+      <Option Name="Poison Sword +2" Point="15" />
+      <Option Name="Poison Sword +1" Point="10" />
+    </Data>
+    <Data No="121" ID="1870" Name="Paralysis Sword" SkillRank="1">
+      <Option Name="Paralysis Sword +3" Point="20" />
+      <Option Name="Paralysis Sword +2" Point="15" />
+      <Option Name="Paralysis Sword +1" Point="10" />
+    </Data>
+    <Data No="122" ID="1880" Name="Sleep Sword" SkillRank="1">
+      <Option Name="Sleep Sword +3" Point="20" />
+      <Option Name="Sleep Sword +2" Point="15" />
+      <Option Name="Sleep Sword +1" Point="10" />
+    </Data>
+    <Data No="123" ID="1890" Name="Fire Sword" SkillRank="1">
+      <Option Name="Fire Sword +3" Point="20" />
+      <Option Name="Fire Sword +2" Point="15" />
+      <Option Name="Fire Sword +1" Point="10" />
+    </Data>
+    <Data No="124" ID="1900" Name="Water Sword" SkillRank="1">
+      <Option Name="Water Sword +3" Point="20" />
+      <Option Name="Water Sword +2" Point="15" />
+      <Option Name="Water Sword +1" Point="10" />
+    </Data>
+    <Data No="125" ID="1910" Name="Thunder Sword" SkillRank="1">
+      <Option Name="Thunder Sword +3" Point="20" />
+      <Option Name="Thunder Sword +2" Point="15" />
+      <Option Name="Thunder Sword +1" Point="10" />
+    </Data>
+    <Data No="126" ID="1920" Name="Ice Sword" SkillRank="1">
+      <Option Name="Ice Sword +3" Point="20" />
+      <Option Name="Ice Sword +2" Point="15" />
+      <Option Name="Ice Sword +1" Point="10" />
+    </Data>
+    <Data No="127" ID="1930" Name="Dragon Sword" SkillRank="1">
+      <Option Name="Dragon Sword +3" Point="20" />
+      <Option Name="Dragon Sword +2" Point="15" />
+      <Option Name="Dragon Sword +1" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Gunning">
+    <Data No="171" ID="0340" Name="Steady Hand">
+      <Option Name="Steady Hand+2" Point="20">
+        <ContainedSkills>
+          <Skill Name="Normal Shot Up" />
+          <Skill Name="Pierce Shot Up" />
+          <Skill Name="Scatter Shot Up" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Steady Hand+1" Point="15">
+        <ContainedSkills>
+          <Skill Name="Normal Shot Up" />
+          <Skill Name="Pierce Shot Up" />
+          <Skill Name="Scatter Shot Up" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="38" ID="1130" Name="Normal Shot Up">
+      <Option Name="Normal Shot Up" Point="10" />
+    </Data>
+    <Data No="11" ID="1140" Name="Pierce Shot Up">
+      <Option Name="Pierce Shot Up" Point="10" />
+    </Data>
+    <Data No="23" ID="1150" Name="Pellet Shot Up">
+      <Option Name="Scatter Shot Up" Point="10" />
+    </Data>
+    <Data No="39" ID="1160" Name="Normal Shot Add">
+      <Option Name="Normal ShotAll Add" Point="15" />
+    </Data>
+    <Data No="12" ID="1170" Name="Pierce Shot Add">
+      <Option Name="Pierce ShotAll Add" Point="20" />
+      <Option Name="Pierce ShotLv1&amp;2 Add" Point="15" />
+      <Option Name="Pierce ShotLv1 Add" Point="10" />
+    </Data>
+    <Data No="24" ID="1180" Name="Pellet Shot Add">
+      <Option Name="Pellet Shot All Add" Point="20" />
+      <Option Name="Pellet Shot Lv1&amp;2 Add" Point="15" />
+      <Option Name="Pellet Shot Lv1 Add" Point="10" />
+    </Data>
+    <Data No="60" ID="1190" Name="Crag Shot Add">
+      <Option Name="Crag ShotAll Add" Point="20" />
+      <Option Name="Crag ShotLv1&amp;2 Add" Point="15" />
+      <Option Name="Crag ShotLv1 Add" Point="10" />
+    </Data>
+    <Data No="8" ID="1200" Name="Cluster Shot Add">
+      <Option Name="Cluster ShotAll Add" Point="20" />
+      <Option Name="Cluster ShotLv1&amp;2 Add" Point="15" />
+      <Option Name="Cluster ShotLv1 Add" Point="10" />
+    </Data>
+    <Data No="108" ID="1760" Name="Poison Coating Add">
+      <Option Name="Poison Coating Add" Point="10" />
+    </Data>
+    <Data No="109" ID="1770" Name="Paralysis Coating Add">
+      <Option Name="Paralysis Coating Add" Point="10" />
+    </Data>
+    <Data No="110" ID="1780" Name="Sleep Coating Add">
+      <Option Name="Sleep Coating Add" Point="10" />
+    </Data>
+    <Data No="172" ID="0350" Name="Mounting">
+      <Option Name="Mounting +3" Point="20">
+        <ContainedSkills>
+          <Skill Name="Load Up" />
+          <Skill Name="Reload +3" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Mounting +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Load Up" />
+          <Skill Name="Reload +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Mounting +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Load Up" />
+          <Skill Name="Reload +1" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="196" ID="0360" Name="Gentle Shot">
+      <Option Name="Gentle Shot +3" Point="20">
+        <ContainedSkills>
+          <Skill Name="Load Up" />
+          <Skill Name="Recoil +3" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Gentle Shot +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Load Up" />
+          <Skill Name="Recoil +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Gentle Shot +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Load Up" />
+          <Skill Name="Recoil +1" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="68" ID="1570" Name="Loading">
+      <Option Name="Load Up" Point="10" />
+    </Data>
+    <Data No="160" ID="0290" Name="Rapid Fire">
+      <Option Name="Rapid Fire" Point="15" />
+    </Data>
+    <Data No="62" ID="1110" Name="Auto-Reload">
+      <Option Name="Auto-Reload" Point="10">
+        <DeactivateSkills>
+          <Skill Name="Recoil +3" />
+        </DeactivateSkills>
+      </Option>
+    </Data>
+    <Data No="28" ID="1090" Name="Reload" SkillRank="1">
+      <Option Name="Reload +3" Point="20" />
+      <Option Name="Reload +2" Point="15" />
+      <Option Name="Reload +1" Point="10" />
+      <Option Name="Reload -1" Point="-10" />
+    </Data>
+    <Data No="52" ID="1120" Name="Recoil" SkillRank="1">
+      <Option Name="Recoil +3" Point="20" />
+      <Option Name="Recoil +2" Point="15" />
+      <Option Name="Recoil +1" Point="10" />
+    </Data>
+    <Data No="176" ID="0260" Name="Critical Shot">
+      <Option Name="Critical Shot +3" Point="20">
+        <ContainedSkills>
+          <Skill Name="Attack Up (XXL)" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Critical Shot +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Attack Up (XL)" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Critical Shot +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Attack Up (L)" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="69" ID="1580" Name="Precision" SkillRank="1">
+      <Option Name="Precision+2" Point="20" />
+      <Option Name="Deviation Down" Point="10" />
+      <Option Name="Deviation Up" Point="-10" />
+    </Data>
+    <Data No="34" ID="1500" Name="Ammo Combiner">
+      <Option Name="Ammo Combiner" Point="10" />
+    </Data>
+    <Data No="180" ID="0580" Name="Bullet Saver">
+      <Option Name="Bullet Saver +2" Point="20" />
+      <Option Name="Bullet Saver +1" Point="10" />
+    </Data>
+    <Data No="213" ID="1100" Name="Sniper">
+      <Option Name="Sniper" Point="10">
+        <ContainedSkills>
+          <Skill Name="Auto-Reload" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="221" ID="0370" Name="Spacing">
+      <Option Name="Spacing" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Hiden Skills">
+    <Data No="129" ID="0010" Name="SnS Tech">
+      <Option Name="SnS Tech (Sword Saint)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+          <Skill Name="Fire Sword +3" />
+          <Skill Name="Water Sword +3" />
+          <Skill Name="Thunder Sword +3" />
+          <Skill Name="Ice Sword +3" />
+          <Skill Name="Dragon Sword +3" />
+          <Skill Name="Paralysis Sword +2" />
+          <Skill Name="Sleep Sword +2" />
+          <Skill Name="Poison Sword +2" />
+          <Skill Name="Bomb Sword +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="SnS Tech (Kaiden)" Point="20" />
+      <Option Name="SnS Tech (Expert)" Point="10" />
+      <Option Name="SnS Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="130" ID="0020" Name="DS Tech">
+      <Option Name="DS Tech (Dual Dragon)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="DS Tech (Kaiden)" Point="20" />
+      <Option Name="DS Tech (Expert)" Point="10" />
+      <Option Name="DS Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="131" ID="0030" Name="GS Tech">
+      <Option Name="GS Tech (Sword King)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="GS Tech (Kaiden)" Point="20" />
+      <Option Name="GS Tech (Expert)" Point="10" />
+      <Option Name="GS Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="132" ID="0040" Name="LS Tech">
+      <Option Name="LS Tech (Katana God)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="LS Tech (Kaiden)" Point="20" />
+      <Option Name="LS Tech (Expert)" Point="10" />
+      <Option Name="LS Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="133" ID="0050" Name="Hammer Tech">
+      <Option Name="Hammer Tech (Blunt Beast)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Hammer Tech (Kaiden)" Point="20" />
+      <Option Name="Hammer Tech (Expert)" Point="10" />
+      <Option Name="Hammer Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="134" ID="0060" Name="HH Tech">
+      <Option Name="HH Tech (Flamboyant Emperor)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="HH Tech (Kaiden)" Point="20" />
+      <Option Name="HH Tech (Expert)" Point="10" />
+      <Option Name="HH Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="135" ID="0070" Name="Lance Tech">
+      <Option Name="Lance Tech (Heavenly Spear)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Lance Tech (Kaiden)" Point="20" />
+      <Option Name="Lance Tech (Expert)" Point="10" />
+      <Option Name="Lance Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="136" ID="0080" Name="GL Tech">
+      <Option Name="GL Tech (Cannon Emperor)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="GL Tech (Kaiden)" Point="20" />
+      <Option Name="GL Tech (Expert)" Point="10" />
+      <Option Name="GL Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="211" ID="0090" Name="Switch Axe tech">
+      <Option Name="Swaxe Tech (Edge Marshall)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Swaxe Tech (Kaiden)" Point="20" />
+      <Option Name="Swaxe Tech (Expert)" Point="10" />
+      <Option Name="Swaxe Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="187" ID="0100" Name="Tonfa Tech">
+      <Option Name="Tonfa Tech (Piercing Phoenix)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Tonfa Tech (Kaiden)" Point="20" />
+      <Option Name="Tonfa Tech (Expert)" Point="10" />
+      <Option Name="Tonfa Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="224" ID="0110" Name="Magspike Tech">
+      <Option Name="MS Tech (Magnetic Star)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="MS Tech (Kaiden)" Point="20" />
+      <Option Name="MS Tech (Expert)" Point="10" />
+      <Option Name="MS Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="137" ID="0120" Name="HBG Tech">
+      <Option Name="HBG Tech (Gun Sage)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+        <DeactivateSkills>
+          <Skill Name="Evade Distance" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="HBG Tech (Kaiden)" Point="20">
+        <DeactivateSkills>
+          <Skill Name="Evade Distance" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="HBG Tech (Expert)" Point="10">
+        <DeactivateSkills>
+          <Skill Name="Evade Distance" />
+        </DeactivateSkills>
+      </Option>
+      <Option Name="HBG Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="138" ID="0130" Name="LBG Tech">
+      <Option Name="LBG Tech (Gun Prodigy)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="LBG Tech (Kaiden)" Point="20" />
+      <Option Name="LBG Tech (Expert)" Point="10" />
+      <Option Name="LBG Tech (Novice)" Point="-10" />
+    </Data>
+    <Data No="139" ID="0140" Name="Bow Tech">
+      <Option Name="Bow Tech (Bow Demon)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Bow Tech (Kaiden)" Point="20" />
+      <Option Name="Bow Tech (Expert)" Point="10" />
+      <Option Name="Bow Tech (Novice)" Point="-10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Elemental Resistance">
+    <Data No="26" ID="1320" Name="All Res Up">
+      <Option Name="All Res +20" Point="20" />
+      <Option Name="All Res +10" Point="15" />
+      <Option Name="All Res +5" Point="10" />
+      <Option Name="All Res -5" Point="-10" />
+      <Option Name="All Res -10" Point="-15" />
+      <Option Name="All Res -20" Point="-20" />
+    </Data>
+    <Data No="53" ID="1330" Name="Fire Res" SkillRank="1">
+      <Option Name="Fire Res +30" Point="20" />
+      <Option Name="Fire Res +20" Point="15" />
+      <Option Name="Fire Res +10" Point="10" />
+      <Option Name="Fire Res -10" Point="-10" />
+      <Option Name="Fire Res -20" Point="-15" />
+      <Option Name="Fire Res -30" Point="-20" />
+    </Data>
+    <Data No="58" ID="1340" Name="Water Res" SkillRank="1">
+      <Option Name="Water Res +30" Point="20" />
+      <Option Name="Water Res +20" Point="15" />
+      <Option Name="Water Res +10" Point="10" />
+      <Option Name="Water Res -10" Point="-10" />
+      <Option Name="Water Res -20" Point="-15" />
+      <Option Name="Water Res -30" Point="-20" />
+    </Data>
+    <Data No="76" ID="1350" Name="Ice Res" SkillRank="1">
+      <Option Name="Ice Res +30" Point="20" />
+      <Option Name="Ice Res +20" Point="15" />
+      <Option Name="Ice Res +10" Point="10" />
+      <Option Name="Ice Res -10" Point="-10" />
+      <Option Name="Ice Res -20" Point="-15" />
+      <Option Name="Ice Res -30" Point="-20" />
+    </Data>
+    <Data No="10" ID="1360" Name="Thunder Res" SkillRank="1">
+      <Option Name="Thunder Res +30" Point="20" />
+      <Option Name="Thunder Res +20" Point="15" />
+      <Option Name="Thunder Res +10" Point="10" />
+      <Option Name="Thunder Res -10" Point="-10" />
+      <Option Name="Thunder Res -20" Point="-15" />
+      <Option Name="Thunder Res -30" Point="-20" />
+    </Data>
+    <Data No="59" ID="1370" Name="Dragon Res" SkillRank="1">
+      <Option Name="Dragon Res +30" Point="20" />
+      <Option Name="Dragon Res +20" Point="15" />
+      <Option Name="Dragon Res +10" Point="10" />
+      <Option Name="Dragon Res -10" Point="-10" />
+      <Option Name="Dragon Res -20" Point="-15" />
+      <Option Name="Dragon Res -30" Point="-20" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Status Resistance">
+    <Data No="46" ID="0910" Name="Poison Res" SkillRank="1">
+      <Option Name="Poison Negated" Point="20" />
+      <Option Name="Poison Halved" Point="10" />
+      <Option Name="Poison Doubled" Point="-10" />
+    </Data>
+    <Data No="57" ID="0880" Name="Paralysis Res" SkillRank="1">
+      <Option Name="Paralysis Negated" Point="20" />
+      <Option Name="Paralysis Halved" Point="10" />
+      <Option Name="Paralysis Doubled" Point="-10" />
+    </Data>
+    <Data No="25" ID="0890" Name="Sleep Res" SkillRank="1">
+      <Option Name="Sleep Negated" Point="20" />
+      <Option Name="Sleep Halved" Point="10" />
+      <Option Name="Sleep Doubled" Point="-10" />
+    </Data>
+    <Data No="148" ID="0830" Name="Status Res" SkillRank="1">
+      <Option Name="Status Immunity (Myriad)" Point="30">
+        <ContainedSkills>
+          <Skill Name="Poison Negated" />
+          <Skill Name="Paralysis Negated" />
+          <Skill Name="Sleep Negated" />
+          <Skill Name="Deoderant" />
+          <Skill Name="Snowball Res" />
+          <Skill Name="Vocal Chord Immunity" />
+          <Skill Name="Anti-Def Down" />
+          <Skill Name="Heavy Drinker" />
+          <Skill Name="Magnetic Res" />
+          <Skill Name="Crystal Res" />
+          <Skill Name="Blast Resistance" />
+          <Skill Name="Freeze Res" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Status Immunity" Point="20">
+        <ContainedSkills>
+          <Skill Name="Poison Negated" />
+          <Skill Name="Paralysis Negated" />
+          <Skill Name="Sleep Negated" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Status Halved" Point="10">
+        <ContainedSkills>
+          <Skill Name="Poison Halved" />
+          <Skill Name="Paralysis Halved" />
+          <Skill Name="Sleep Halved" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Status Doubled" Point="-10" />
+    </Data>
+    <Data No="13" ID="0900" Name="Stun Res" SkillRank="1">
+      <Option Name="Stun Negated" Point="20" />
+      <Option Name="Stun Halved" Point="10" />
+      <Option Name="Stun Doubled" Point="-10" />
+    </Data>
+    <Data No="74" ID="0920" Name="Deoderant">
+      <Option Name="Deoderant" Point="10" />
+    </Data>
+    <Data No="75" ID="0930" Name="Snowball Res">
+      <Option Name="Snowball Res" Point="10" />
+    </Data>
+    <Data No="79" ID="1640" Name="Vocal Chords" SkillRank="1">
+      <Option Name="Vocal Chord Immunity" Point="15" />
+      <Option Name="Vocal Chord Halved" Point="10" />
+    </Data>
+    <Data No="146" ID="0870" Name="Def Lock">
+      <Option Name="Anti-Def Down" Point="10" />
+    </Data>
+    <Data No="149" ID="0510" Name="Sobriety">
+      <Option Name="Heavy Drinker" Point="10" />
+      <Option Name="Drunkard" Point="-10" />
+    </Data>
+    <Data No="204" ID="0520" Name="Blast Resistance">
+      <Option Name="Blast Resistance" Point="10" />
+    </Data>
+    <Data No="151" ID="0540" Name="Magnetic Res">
+      <Option Name="Magnetic Res" Point="10" />
+      <Option Name="Mangetic Vulnerability" Point="-10" />
+    </Data>
+    <Data No="150" ID="0530" Name="Crystal Res">
+      <Option Name="Crystal Res" Point="10" />
+      <Option Name="Crystal Vulnerability" Point="-10" />
+    </Data>
+    <Data No="208" ID="0550" Name="Freeze Res">
+      <Option Name="Freeze Res" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Protection and Evasion">
+    <Data No="156" ID="0300" Name="Three Worlds Protection">
+      <Option Name="Unaffected +3" Point="20">
+        <ContainedSkills>
+          <Skill Name="Violent Wind Breaker" />
+          <Skill Name="Quake Res +2" />
+          <Skill Name="Super High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Unaffected +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Dragon Wind Breaker" />
+          <Skill Name="Quake Res +1" />
+          <Skill Name="High Grade Earplugs" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Unaffected +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Wind Press (Large)" />
+          <Skill Name="Quake Res +1" />
+          <Skill Name="Earplugs" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="36" ID="1280" Name="Hearing Protection" SkillRank="1">
+      <Option Name="Super High Grade Earplugs" Point="25" />
+      <Option Name="High Grade Earplugs" Point="15" />
+      <Option Name="Earplugs" Point="10" />
+    </Data>
+    <Data No="77" ID="1630" Name="Quake Res" SkillRank="1">
+      <Option Name="Quake Res +2" Point="25" />
+      <Option Name="Quake Res +1" Point="15" />
+    </Data>
+    <Data No="54" ID="1400" Name="Wind Pressure" SkillRank="1">
+      <Option Name="Violent Wind Breaker" Point="30" />
+      <Option Name="Dragon Wind Breaker" Point="20" />
+      <Option Name="Wind Press (Large)" Point="15" />
+      <Option Name="Wind Pressure (Small)" Point="10" />
+    </Data>
+    <Data No="49" ID="1290" Name="Anti-Theft">
+      <Option Name="Anti-Theft" Point="10" />
+    </Data>
+    <Data No="30" ID="1380" Name="Heat Res" SkillRank="1">
+      <Option Name="Summer Person" Point="25" />
+      <Option Name="Heat Cancel" Point="15" />
+      <Option Name="Heat Halved" Point="10" />
+      <Option Name="Heat Surge (S)" Point="-10" />
+      <Option Name="Heat Surge (L)" Point="-20" />
+    </Data>
+    <Data No="29" ID="1390" Name="Cold Res" SkillRank="1">
+      <Option Name="Winter General" Point="25" />
+      <Option Name="Cold Cancel" Point="15" />
+      <Option Name="Cold Halved" Point="10" />
+      <Option Name="Cold Surge (S)" Point="-10" />
+      <Option Name="Cold Surge (L)" Point="-20" />
+    </Data>
+    <Data No="152" ID="0410" Name="Light Tread">
+      <Option Name="Light Tread" Point="10" />
+    </Data>
+    <Data No="215" ID="1520" Name="Evasion Boost">
+      <Option Name="Evasion Boost" Point="15">
+        <ContainedSkills>
+          <Skill Name="Evasion +2" />
+          <Skill Name="Evade Distance" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="73" ID="1620" Name="Terrain" SkillRank="1">
+      <Option Name="Terrain Damage Decreased (L)" Point="15" />
+      <Option Name="Terrain Damage Decreased (S)" Point="10" />
+      <Option Name="Terrain Damage Increased (S)" Point="-10" />
+      <Option Name="Terrain Damage Increased (L)" Point="-15" />
+    </Data>
+    <Data No="64" ID="1530" Name="Evasion" SkillRank="1">
+      <Option Name="Evasion +2" Point="20" />
+      <Option Name="Evasion +1" Point="10" />
+    </Data>
+    <Data No="178" ID="0560" Name="Evade Distance">
+      <Option Name="Evade Distance" Point="10" />
+    </Data>
+    <Data No="95" ID="1720" Name="Passive">
+      <Option Name="Passive" Point="10" />
+    </Data>
+    <Data No="9" ID="1270" Name="Protection" SkillRank="1">
+      <Option Name="Goddess' Embrace" Point="20" />
+      <Option Name="Divine Protection" Point="10" />
+      <Option Name="Demonic Protection" Point="-10" />
+      <Option Name="Death God's Embrace" Point="-20" />
+    </Data>
+    <Data No="102" ID="0810" Name="Guts" SkillRank="1">
+      <Option Name="True Guts" Point="30" />
+      <Option Name="Great Guts" Point="20" />
+      <Option Name="Guts" Point="10" />
+    </Data>
+    <Data No="191" ID="0740" Name="Absolute Defense">
+      <Option Name="Absolute Defense" Point="20" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Items and Combination">
+    <Data No="174" ID="0380" Name="Combination Expert">
+      <Option Name="Combination Expert +3" Point="20">
+        <ContainedSkills>
+          <Skill Name="Combination +30%" />
+          <Skill Name="Ammo Combiner" />
+          <Skill Name="Recovery Items Up" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Combination Expert +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Combination +15%" />
+          <Skill Name="Ammo Combiner" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Combination Expert +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Combination +10%" />
+          <Skill Name="Ammo Combiner" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Combination Expert -1" Point="-10">
+        <ContainedSkills>
+          <Skill Name="Combination -5%" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="66" ID="1550" Name="Everlasting">
+      <Option Name="Item Duration Extended" Point="10" />
+      <Option Name="Item Duration Reduced" Point="-10" />
+    </Data>
+    <Data No="78" ID="1300" Name="Wide-Area" SkillRank="1">
+      <Option Name="Wide-Area +3" Point="30" />
+      <Option Name="Wide-Area +2" Point="20" />
+      <Option Name="Wide-Area +1" Point="10" />
+      <Option Name="Wide-Area -1" Point="-10" />
+    </Data>
+    <Data No="14" ID="1440" Name="Whim" SkillRank="1">
+      <Option Name="Divine Whim" Point="15" />
+      <Option Name="Spirit's Whim" Point="10" />
+      <Option Name="Spectre's Whim" Point="-10" />
+      <Option Name="Devil's Whim" Point="-15" />
+    </Data>
+    <Data No="44" ID="1080" Name="Throwing">
+      <Option Name="Throwing Distance Up" Point="10" />
+    </Data>
+    <Data No="92" ID="1700" Name="Strong Arm" SkillRank="1">
+      <Option Name="Strong Arm +2" Point="20" />
+      <Option Name="Strong Arm +1" Point="10" />
+    </Data>
+    <Data No="175" ID="0500" Name="Hunter">
+      <Option Name="Hunter Valhalla" Point="20">
+        <ContainedSkills>
+          <Skill Name="Fishing Expert" />
+          <Skill Name="BBQ Master" />
+          <Skill Name="Map" />
+          <Skill Name="Autotracker" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Hunter Life" Point="10">
+        <ContainedSkills>
+          <Skill Name="Fishing Expert" />
+          <Skill Name="BBQ Master" />
+          <Skill Name="Map" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="80" ID="1650" Name="Cooking" SkillRank="1">
+      <Option Name="BBQ Master" Point="15" />
+      <Option Name="BBQ Expert" Point="10" />
+      <Option Name="False BBQ Expert" Point="-10" />
+    </Data>
+    <Data No="40" ID="1460" Name="Fishing">
+      <Option Name="Fishing Expert" Point="10" />
+    </Data>
+    <Data No="37" ID="1490" Name="Combining" SkillRank="1">
+      <Option Name="Combination +30%" Point="20" />
+      <Option Name="Combination +15%" Point="15" />
+      <Option Name="Combination +10%" Point="10" />
+      <Option Name="Combination -5%" Point="-10" />
+    </Data>
+    <Data No="61" ID="1510" Name="Alchemy">
+      <Option Name="Alchemy" Point="10" />
+    </Data>
+    <Data No="140" ID="0820" Name="Speed Setup" SkillRank="1">
+      <Option Name="Trap Master" Point="20" />
+      <Option Name="Trap Expert" Point="10" />
+    </Data>
+    <Data No="166" ID="0460" Name="Iron Arm">
+      <Option Name="Iron Arm +2" Point="20">
+        <ContainedSkills>
+          <Skill Name="Throwing Distance Up" />
+          <Skill Name="Strong Arm +2" />
+          <Skill Name="Throwing Knives +2" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Iron Arm +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Throwing Distance Up" />
+          <Skill Name="Strong Arm +1" />
+          <Skill Name="Throwing Knives +1" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="144" ID="0850" Name="Knife Throwing" SkillRank="1">
+      <Option Name="Throwing Knives +2" Point="20" />
+      <Option Name="Throwing Knives +1" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Map and Detection">
+    <Data No="35" ID="1410" Name="Map">
+      <Option Name="Map" Point="10" />
+    </Data>
+    <Data No="27" ID="1470" Name="Psychic" SkillRank="1">
+      <Option Name="Autotracker" Point="15" />
+      <Option Name="Detect" Point="10" />
+    </Data>
+    <Data No="17" ID="0940" Name="Stealth">
+      <Option Name="Sneak" Point="10" />
+      <Option Name="Taunt" Point="-10" />
+    </Data>
+    <Data No="188" ID="0670" Name="Incitement">
+      <Option Name="Incitement" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Gathering and Transport">
+    <Data No="3" ID="1310" Name="Backpacking">
+      <Option Name="Pro Transporter" Point="10" />
+    </Data>
+    <Data No="63" ID="1430" Name="Hi Speed Gathering">
+      <Option Name="High Speed Gathering" Point="10" />
+    </Data>
+    <Data No="22" ID="1420" Name="Gathering" SkillRank="1">
+      <Option Name="Gathering +2" Point="15" />
+      <Option Name="Gathering +1" Point="10" />
+      <Option Name="Gathering -1" Point="-10" />
+      <Option Name="Gathering -2" Point="-15" />
+    </Data>
+    <Data No="72" ID="1610" Name="Carving">
+      <Option Name="Carving Expert" Point="15" />
+    </Data>
+    <Data No="192" ID="0770" Name="Mindfulness" SkillRank="1">
+      <Option Name="Imperturbable" Point="15" />
+      <Option Name="Fully Prepared" Point="10" />
+      <Option Name="Negligence" Point="-10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Rewards">
+    <Data No="2" ID="1450" Name="Fate" SkillRank="1">
+      <Option Name="Great Luck" Point="20" />
+      <Option Name="Good Luck" Point="10" />
+      <Option Name="Bad Luck" Point="-10" />
+      <Option Name="Horrible Luck" Point="-20" />
+    </Data>
+    <Data No="104" ID="1740" Name="Pressure" SkillRank="1">
+      <Option Name="Pressure (L)" Point="20" />
+      <Option Name="Pressure (S)" Point="10" />
+    </Data>
+    <Data No="70" ID="1590" Name="Monster">
+      <Option Name="Come on big guy!" Point="10" />
+    </Data>
+  </SkillType>
+  <SkillType TypeName="Other">
+    <Data No="167" ID="0470" Name="Breeder">
+      <Option Name="Breeder" Point="10" />
+    </Data>
+    <Data No="100" ID="1730" Name="Bond">
+      <Option Name="Bond" Point="10" />
+    </Data>
+    <Data No="94" ID="1710" Name="Inspiration">
+      <Option Name="Inspiration" Point="10" />
+    </Data>
+    <Data No="105" ID="1750" Name="Capture Proficiency" SkillRank="1">
+      <Option Name="Capture Guru" Point="20" />
+      <Option Name="Capture Proficiency" Point="10" />
+    </Data>
+    <Data No="153" ID="0490" Name="Relief">
+      <Option Name="Relief" Point="10" />
+    </Data>
+    <Data No="145" ID="0860" Name="Caring">
+      <Option Name="Caring +3" Point="25" />
+      <Option Name="Caring +2" Point="15" />
+      <Option Name="Caring +1" Point="10" />
+    </Data>
+    <Data No="181" ID="0590" Name="Movement Speed">
+      <Option Name="Movement Speed +2" Point="20" />
+      <Option Name="Movement Speed +1" Point="10" />
+    </Data>
+    <Data No="182" ID="0600" Name="Reinforcement">
+      <Option Name="Red Soul" Point="10" />
+      <Option Name="Blue Soul" Point="-10" />
+    </Data>
+    <Data No="195" ID="0750" Name="Assistance">
+      <Option Name="Assistance" Point="10" />
+    </Data>
+    <Data No="163" ID="0230" Name="Grace">
+      <Option Name="Grace +3" Point="30" />
+      <Option Name="Grace +2" Point="20" />
+      <Option Name="Grace +1" Point="10" />
+    </Data>
+    <Data No="158" ID="0280" Name="Compensation">
+      <Option Name="Compensation" Point="10">
+        <ContainedSkills>
+          <Skill Name="Death God's Embrace" />
+          <Skill Name="Sharpness +1" />
+          <Skill Name="Attack Up (XXL)" />
+          <Skill Name="Expert +4" />
+          <Skill Name="Evasion +2" />
+        </ContainedSkills>
+        <DeactivateSkills>
+          <Skill Name="Goddess' Embrace" />
+        </DeactivateSkills>
+      </Option>
+    </Data>
+    <Data No="185" ID="0650" Name="Dark Pulse">
+      <Option Name="Dark Pulse" Point="20" />
+    </Data>
+    <Data No="189" ID="0680" Name="Blazing Grace">
+      <Option Name="Blazing Majesty +2" Point="15">
+        <ContainedSkills>
+          <Skill Name="Adrenaline +2" />
+          <Skill Name="Red Soul" />
+          <Skill Name="Bomb Boost" />
+          <Skill Name="Fire Res +30" />
+          <Skill Name="Gunnery God" />
+          <Skill Name="Summer Person" />
+          <Skill Name="Terrain Damage Decreased (L)" />
+          <Skill Name="Fire Attack (L)" />
+          <Skill Name="Fire Sword +3" />
+          <Skill Name="Bomb Sword +3" />
+        </ContainedSkills>
+      </Option>
+      <Option Name="Blazing Majesty +1" Point="10">
+        <ContainedSkills>
+          <Skill Name="Adrenaline +1" />
+          <Skill Name="Red Soul" />
+          <Skill Name="Bomb Boost" />
+          <Skill Name="Fire Res +20" />
+          <Skill Name="Gunnery Expert" />
+          <Skill Name="Heat Cancel" />
+          <Skill Name="Terrain Damage Decreased (S)" />
+          <Skill Name="Fire Attack (S)" />
+          <Skill Name="Fire Sword +2" />
+          <Skill Name="Bomb Sword +2" />
+        </ContainedSkills>
+      </Option>
+    </Data>
+    <Data No="203" ID="0320" Name="Drawing Arts">
+      <Option Name="Drawing Arts+2" Point="15" />
+      <Option Name="Drawing Arts+1" Point="10" />
+    </Data>
+    <Data No="209" ID="0630" Name="Ice Age">
+      <Option Name="Ice Age" Point="10" />
+    </Data>
+  </SkillType>
+</Skill>

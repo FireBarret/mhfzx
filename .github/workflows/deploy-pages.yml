@@ -48,10 +48,6 @@ jobs:
         working-directory: app
         run: npm run build
 
-      # app/public/default-data/ is gitignored and never present in CI, so
-      # the deployed site always falls back to the manual "Load Data
-      # Folder…" picker -- intentional, see README's redistribution note.
-
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

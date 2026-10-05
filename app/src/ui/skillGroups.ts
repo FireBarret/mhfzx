@@ -18,9 +18,84 @@
 // empty (private browsing, cleared site data, etc.), and this feature
 // should degrade to "just empty" rather than break the page.
 
+import type { SkillBaseEntry } from '../data/schema'
+
 const FAVORITES_KEY = 'mhfz.favorites'
 const SKILLSETS_KEY = 'mhfz.skillSets'
 const SEARCH_STATE_KEY = 'mhfz.searchState'
+const DEFAULTS_SEEDED_KEY = 'mhfz.defaultsSeeded'
+
+// The original app's own setting.xml ships with these six named Skill Sets
+// (skill names only -- the original format has no explicit point target per
+// skill). Seeded once per browser on first load so the Skill Sets group
+// isn't empty out of the box; see maybeSeedDefaultSkillSets.
+const DEFAULT_SKILL_SETS: { name: string; skillNames: string[] }[] = [
+  {
+    name: 'Vigor Base',
+    skillNames: [
+      'Solid Determination',
+      'Strong Attack +6',
+      'Furious',
+      'Thunder Clad',
+      'Rush',
+      'Sword God +2',
+      'Vigorous',
+      'Ceaseless',
+      'Crit Conversion',
+      'Vampirism+2',
+    ],
+  },
+  {
+    name: 'Adren Base',
+    skillNames: [
+      'Solid Determination',
+      'Strong Attack +6',
+      'Furious',
+      'Thunder Clad',
+      'Rush',
+      'Sword God +2',
+      'Ceaseless',
+      'Crit Conversion',
+      'Vampirism+2',
+    ],
+  },
+  {
+    name: 'Evasion Skills',
+    skillNames: ['Evasion Boost', 'Drawing Arts+2', 'Starving Wolf +2'],
+  },
+  {
+    name: 'Guard Skills',
+    skillNames: ['Obscurity', 'Fortification +2', 'Reflect +3'],
+  },
+  {
+    name: 'Damage Skills',
+    skillNames: [
+      'Stylish Assault',
+      'Stylish',
+      'Ice Age',
+      'Point Breakthrough',
+      'Abnormality',
+      'Combat Supremacy',
+      'Elemental Attack Up',
+      'Lone Wolf',
+      'Consumption Slayer',
+      'Charge Attack Up +2',
+      'Adaptation +2',
+    ],
+  },
+  {
+    name: 'Support Base',
+    skillNames: [
+      'Encourage +2',
+      'All Res +20',
+      'Skilled',
+      'Blazing Majesty +2',
+      'Blue Soul',
+      'Abnormality',
+      'Unaffected +3',
+    ],
+  },
+]
 
 export interface SkillSetEntry {
   skillName: string
@@ -98,4 +173,30 @@ export function getSearchSessionState(): SearchSessionState | null {
 
 export function saveSearchSessionState(state: SearchSessionState): void {
   writeJson(SEARCH_STATE_KEY, state)
+}
+
+/** Seeds the six Skill Sets bundled with the original app's own setting.xml
+ * into localStorage, once per browser (guarded by DEFAULTS_SEEDED_KEY so it
+ * never overwrites sets the user has since renamed or deleted). Each skill
+ * name is resolved against the loaded skillBase to its lowest positive
+ * tier, matching searchView's addTargetBySkillName default. Skill names not
+ * found in the loaded data (e.g. a different package.xml revision) are
+ * skipped rather than failing the whole set. */
+export function maybeSeedDefaultSkillSets(skillBase: SkillBaseEntry[]): void {
+  try {
+    if (localStorage.getItem(DEFAULTS_SEEDED_KEY)) return
+  } catch {
+    return
+  }
+  for (const { name, skillNames } of DEFAULT_SKILL_SETS) {
+    const entries: SkillSetEntry[] = []
+    for (const skillName of skillNames) {
+      const skill = skillBase.find((s) => s.name === skillName)
+      const lowestPositive = skill?.options.filter((o) => o.point > 0).sort((a, b) => a.point - b.point)[0]
+      if (!lowestPositive) continue
+      entries.push({ skillName, point: lowestPositive.point, optionName: lowestPositive.name })
+    }
+    if (entries.length > 0) saveSkillSet(name, entries)
+  }
+  writeJson(DEFAULTS_SEEDED_KEY, true)
 }
