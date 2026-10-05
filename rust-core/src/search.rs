@@ -15,7 +15,7 @@
 //! changing this module's shape.
 
 use crate::evaluator::{evaluate_loadout, ActiveSkill, EquippedPiece, Loadout};
-use crate::schema::{EquipData, GameData, Job, JewelData, SkillName, WeaponData};
+use crate::schema::{Elemental, EquipData, GameData, Job, JewelData, SkillName, WeaponData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -51,6 +51,20 @@ pub struct SearchInput {
     pub presets: SearchPresets,
 }
 
+/// Identifies which of the 6 equip slots a decoration was placed into —
+/// used to report a per-piece decoration breakdown on `FoundSet` (the
+/// original's equipment-clip export shows decorations inline on each
+/// piece's own line, not as one flat list for the whole set).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EquipSlot {
+    Head,
+    Body,
+    Arm,
+    Waist,
+    Leg,
+    Weapon,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PiecePreset {
@@ -76,6 +90,11 @@ pub struct FoundSkill {
     pub skill_name: SkillName,
     pub option_name: String,
     pub point: i32,
+    /// True for a skill granted via a Senyu (遷悠) ability — pre-satisfied,
+    /// not a tiered-lookup result from a raw point sum. Lets UI/export code
+    /// group skills the way the original's equipment-clip export does
+    /// (separate "passive"/Senyu vs. regular "activated skills" sections).
+    pub from_senyu: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,8 +111,26 @@ pub struct FoundSet {
     pub arm: String,
     pub waist: String,
     pub leg: String,
+    /// Every decoration used in this set, flattened across all 6 slots —
+    /// kept for callers that just want the whole-set list (e.g. the results
+    /// grid's "Decorations" column).
     pub decorations: Vec<String>,
+    /// The same decorations, broken out per slot (mirrors the original
+    /// equipment-clip export's per-piece decoration display) — empty when
+    /// that slot has no decorations.
+    pub weapon_decorations: Vec<String>,
+    pub head_decorations: Vec<String>,
+    pub body_decorations: Vec<String>,
+    pub arm_decorations: Vec<String>,
+    pub waist_decorations: Vec<String>,
+    pub leg_decorations: Vec<String>,
     pub total_defense: i32,
+    pub resistances: Elemental,
+    /// Distinct Teni-tree skill names present on this loadout (membership
+    /// only, same as `evaluator::EvaluationResult::teni_skill_names`) — the
+    /// original's equipment-clip export lists these in their own section
+    /// separate from regular active skills.
+    pub teni_skill_names: Vec<String>,
     pub active_skills: Vec<FoundSkill>,
 }
 
@@ -263,7 +300,7 @@ struct SearchState<'a> {
     /// for the remaining open capacity. Their skill contributions are
     /// already baked into each weapon pass's starting `running` vector (see
     /// `search()`), so no further bookkeeping is needed for them here.
-    preset_decorations: Vec<&'a JewelData>,
+    preset_decorations: Vec<(EquipSlot, &'a JewelData)>,
     /// Per-armor-slot (head..leg, matching `pieces`'s index order) capacity
     /// already consumed by that slot's preset decorations, if any — 0 for
     /// every non-preset slot.
@@ -340,9 +377,13 @@ fn is_promising(state: &SearchState, chosen_count: usize, running: &[i32]) -> bo
 /// knapsack DP the project plan names as a future improvement — but always
 /// produces a physically valid placement, verified afterward by
 /// `evaluate_loadout`.
-fn fill_decorations<'a>(jewels: &'a [JewelData], piece_capacities: &[u8], deficits: &[(SkillName, i32)]) -> Vec<&'a JewelData> {
-    let mut buckets = piece_capacities.to_vec();
-    let mut chosen: Vec<&JewelData> = Vec::new();
+fn fill_decorations<'a>(
+    jewels: &'a [JewelData],
+    piece_buckets: &[(EquipSlot, u8)],
+    deficits: &[(SkillName, i32)],
+) -> Vec<(EquipSlot, &'a JewelData)> {
+    let mut buckets: Vec<u8> = piece_buckets.iter().map(|(_, cap)| *cap).collect();
+    let mut chosen: Vec<(EquipSlot, &JewelData)> = Vec::new();
     let mut remaining_deficit: HashMap<&str, i32> = deficits.iter().map(|(n, p)| (n.as_str(), *p)).collect();
 
     let mut sorted_targets: Vec<&str> = deficits.iter().map(|(n, _)| n.as_str()).collect();
@@ -378,7 +419,7 @@ fn fill_decorations<'a>(jewels: &'a [JewelData], piece_capacities: &[u8], defici
                 .map(|(i, _)| i)
                 .expect("filtered above to guarantee a fit exists");
             buckets[bucket_idx] -= jewel.slot;
-            chosen.push(jewel);
+            chosen.push((piece_buckets[bucket_idx].0, jewel));
             *remaining_deficit.entry(skill_name).or_insert(0) -= point;
             // A jewel can carry negative side-skills too; apply those to
             // whichever other target they affect, so the loop doesn't keep
@@ -452,17 +493,19 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
     // Each slot's open capacity is its full slot count minus whatever its
     // own preset decorations already consumed (0 for non-preset slots) --
     // see `armor_reserved_capacity`/`weapon_reserved_capacity`'s doc
-    // comments.
-    let mut sockets: Vec<u8> = pieces
+    // comments. Tagged with the owning slot so `fill_decorations`'s
+    // placements can be reported per piece, not just as one flat list.
+    const ARMOR_SLOT_ORDER: [EquipSlot; 5] = [EquipSlot::Head, EquipSlot::Body, EquipSlot::Arm, EquipSlot::Waist, EquipSlot::Leg];
+    let mut buckets: Vec<(EquipSlot, u8)> = pieces
         .iter()
         .enumerate()
-        .map(|(i, p)| best_level(p).slot.saturating_sub(state.armor_reserved_capacity[i]))
-        .filter(|&s| s > 0)
+        .map(|(i, p)| (ARMOR_SLOT_ORDER[i], best_level(p).slot.saturating_sub(state.armor_reserved_capacity[i])))
+        .filter(|(_, cap)| *cap > 0)
         .collect();
     if let Some(weapon) = state.weapon {
         let weapon_slot = best_weapon_level(weapon).slot.saturating_sub(state.weapon_reserved_capacity);
         if weapon_slot > 0 {
-            sockets.push(weapon_slot);
+            buckets.push((EquipSlot::Weapon, weapon_slot));
         }
     }
 
@@ -473,8 +516,11 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
         .filter(|(i, t)| running[*i] < t.min_point)
         .map(|(i, t)| (t.skill_name.clone(), t.min_point - running[i]))
         .collect();
-    let mut decorations: Vec<&JewelData> = state.preset_decorations.clone();
-    decorations.extend(fill_decorations(state.jewels, &sockets, &deficits));
+    let mut placed: Vec<(EquipSlot, &JewelData)> = state.preset_decorations.clone();
+    placed.extend(fill_decorations(state.jewels, &buckets, &deficits));
+
+    let decorations: Vec<&JewelData> = placed.iter().map(|(_, j)| *j).collect();
+    let by_slot = |slot: EquipSlot| -> Vec<String> { placed.iter().filter(|(s, _)| *s == slot).map(|(_, j)| j.name.clone()).collect() };
 
     let loadout = Loadout {
         weapon: state.weapon,
@@ -515,7 +561,12 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
     let mut active_skills: Vec<FoundSkill> = result
         .active_skills
         .iter()
-        .map(|(name, a)| FoundSkill { skill_name: name.clone(), option_name: a.option_name.clone(), point: a.point })
+        .map(|(name, a)| FoundSkill {
+            skill_name: name.clone(),
+            option_name: a.option_name.clone(),
+            point: a.point,
+            from_senyu: a.from_senyu,
+        })
         .collect();
     active_skills.sort_by(|a, b| {
         let a_rank = target_order.get(a.skill_name.as_str());
@@ -536,7 +587,19 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
         waist: pieces[3].name.clone(),
         leg: pieces[4].name.clone(),
         decorations: decorations.iter().map(|d| d.name.clone()).collect(),
+        weapon_decorations: by_slot(EquipSlot::Weapon),
+        head_decorations: by_slot(EquipSlot::Head),
+        body_decorations: by_slot(EquipSlot::Body),
+        arm_decorations: by_slot(EquipSlot::Arm),
+        waist_decorations: by_slot(EquipSlot::Waist),
+        leg_decorations: by_slot(EquipSlot::Leg),
         total_defense: result.total_defense,
+        resistances: result.resistances.clone(),
+        teni_skill_names: {
+            let mut names: Vec<String> = result.teni_skill_names.iter().cloned().collect();
+            names.sort();
+            names
+        },
         active_skills,
     });
 }
@@ -690,14 +753,20 @@ pub fn search(data: &GameData, input: &SearchInput) -> Result<Vec<FoundSet>, Str
         None => (shortlist_weapons(&data.weapons, input.job, &target_names).into_iter().map(Some).collect(), 0),
     };
 
-    let mut preset_decorations: Vec<&JewelData> = Vec::new();
-    for preset in [&head_preset, &body_preset, &arm_preset, &waist_preset, &leg_preset] {
+    let mut preset_decorations: Vec<(EquipSlot, &JewelData)> = Vec::new();
+    for (slot, preset) in [
+        (EquipSlot::Head, &head_preset),
+        (EquipSlot::Body, &body_preset),
+        (EquipSlot::Arm, &arm_preset),
+        (EquipSlot::Waist, &waist_preset),
+        (EquipSlot::Leg, &leg_preset),
+    ] {
         if let Some((_, decorations)) = preset {
-            preset_decorations.extend(decorations.iter().copied());
+            preset_decorations.extend(decorations.iter().map(|j| (slot, *j)));
         }
     }
     if let Some((_, decorations)) = &weapon_preset {
-        preset_decorations.extend(decorations.iter().copied());
+        preset_decorations.extend(decorations.iter().map(|j| (EquipSlot::Weapon, *j)));
     }
     // Preset decorations' skill contributions are a fixed baseline on top of
     // whichever weapon is tried — folded into `running` below, once per
@@ -708,7 +777,7 @@ pub fn search(data: &GameData, input: &SearchInput) -> Result<Vec<FoundSet>, Str
         .map(|t| {
             preset_decorations
                 .iter()
-                .filter_map(|j| j.skills.iter().find(|s| s.skill_name == t.skill_name))
+                .filter_map(|(_, j)| j.skills.iter().find(|s| s.skill_name == t.skill_name))
                 .map(|s| s.point)
                 .sum()
         })
@@ -973,6 +1042,11 @@ mod tests {
         let best = &results[0];
         assert_eq!(best.decorations.len(), 3);
         assert!(best.decorations.iter().all(|d| d == "Attack 1-Slot"));
+        // All three must be reported under the head slot specifically (the
+        // only piece with any capacity in this fixture), not scattered
+        // across the other empty-capacity slots.
+        assert_eq!(best.head_decorations.len(), 3);
+        assert!(best.body_decorations.is_empty() && best.weapon_decorations.is_empty());
     }
 
     /// Confirms weapons are actually selected and contribute both their own
@@ -1024,6 +1098,11 @@ mod tests {
         assert!(!results.is_empty(), "expected the weapon's own skill + slot to be usable");
         assert_eq!(results[0].weapon.as_deref(), Some("Attack Sword"));
         assert_eq!(results[0].decorations, vec!["Attack 2-Slot".to_string()]);
+        // Regression: the decoration must be reported under the weapon's
+        // own per-slot breakdown, not just the flat `decorations` list --
+        // no armor piece has any slot capacity in this fixture.
+        assert_eq!(results[0].weapon_decorations, vec!["Attack 2-Slot".to_string()]);
+        assert!(results[0].head_decorations.is_empty());
     }
 
     /// Regression test for a real issue found via a live browser run: every
@@ -1184,6 +1263,9 @@ mod tests {
                 "only a 1-slot filler fits in the remaining capacity: {:?}",
                 r.decorations
             );
+            // Both the preset decoration and any auto-filled one belong to
+            // the head slot specifically -- they're all on the same piece.
+            assert_eq!(r.head_decorations.len(), r.decorations.len());
         }
     }
 

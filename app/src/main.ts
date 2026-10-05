@@ -4,7 +4,7 @@ import { loadGameDataFromFileList, MissingFilesError } from './data/browserLoad'
 import { tryLoadDefaultGameData } from './data/defaultLoad'
 import type { GameData } from './data/schema'
 import { appState } from './ui/appState'
-import { renderSearchView, renderTagFilter } from './ui/searchView'
+import { renderSearchView, renderTagFilter, renderPresetTagFilter } from './ui/searchView'
 import { renderDataBrowserView } from './ui/dataBrowserView'
 
 type Tab = 'search' | 'browser'
@@ -59,8 +59,12 @@ document.querySelectorAll<HTMLButtonElement>('.tab-button').forEach((btn) => {
     searchPanel.classList.toggle('active', tab === 'search')
     browserPanel.classList.toggle('active', tab === 'browser')
     // Tags are added/removed from the Data Browser tab, so refresh the
-    // Search tab's tag-filter dropdown whenever it becomes visible again.
-    if (tab === 'search') renderTagFilter(searchPanel)
+    // Search tab's tag-filter dropdown and preset-picker tag filter
+    // whenever it becomes visible again.
+    if (tab === 'search') {
+      renderTagFilter(searchPanel)
+      renderPresetTagFilter(searchPanel)
+    }
   })
 })
 

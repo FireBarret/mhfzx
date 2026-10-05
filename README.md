@@ -76,8 +76,9 @@ only show up in a real browser (file-serving permissions, WASM init timing,
 etc.) that `vitest`'s jsdom-based tests can't. Run with:
 
 ```sh
-cd app && node scripts/diagnose.mjs            # folder loading, skill tree, search, results grid
+cd app && node scripts/diagnose.mjs             # folder loading, skill tree, search, results grid
 cd app && node scripts/diagnose-newfeatures.mjs # equip presets, armor-type filter, item tags
+cd app && node scripts/diagnose-clip-export.mjs # copy as text/image, save as PNG, preset tag filter
 ```
 
 ## Status
@@ -93,7 +94,18 @@ rest), an **armor-type filter** (Exotic/G Rank Armour/GS Armour/Origin/
 Tower/Zenith/Zenith (ZP), built from whatever's actually loaded), and
 **item tags** ("already have" tags on any armor/weapon/jewel/skill-cuff row
 in the Data Browser, with a "only use items tagged…" filter on the Search
-tab). All three are localStorage-backed like Favorites/Skill Sets.
+tab, and a matching tag filter on the preset pickers themselves — mirrors
+`EditEquipDialog`'s tag-checklist in the decompiled source). All three are
+localStorage-backed like Favorites/Skill Sets.
+
+Also working: the **equipment-clip export** (`app/src/ui/equipClip.ts`) —
+"Copy as Text", "Copy as Image", and "Save as PNG…" buttons on the selected
+result, reimplementing `MHSX2.Clip.Mhsx2TextClip`/`Mhsx2ImageClip` from the
+decompiled source (weapon + 5 armor lines with class/level/def-atk/slot-fill
+dots/decorations, a total-defense + elemental-resistance line, and Zenith/
+Passive(Senyu)/Active skill sections) against this app's own English UI and
+data shape, via `navigator.clipboard` + an offscreen `<canvas>` instead of
+.NET's `Clipboard`/`System.Drawing`.
 
 `setting.xml`/`tag/*.xml`/`allows.xml`/`ignore.xml` round-trip import/export
 exists in the data layer (`app/src/data/`) but isn't wired into any UI yet

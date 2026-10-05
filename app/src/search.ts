@@ -6,7 +6,7 @@
 // search call. Revisit if a future feature needs many searches at once.
 
 import { search as searchWasm } from 'mhfz-core'
-import type { GameData, Job, SkillName } from './data/schema'
+import type { Elemental, GameData, Job, SkillName } from './data/schema'
 
 export interface SearchTarget {
   skillName: SkillName
@@ -49,6 +49,11 @@ export interface FoundSkill {
   skillName: SkillName
   optionName: string
   point: number
+  /** True for a skill granted via a Senyu (遷悠) ability -- pre-satisfied,
+   * not a tiered-lookup result from a raw point sum. The original's
+   * equipment-clip export lists these in their own "passive skills"
+   * section, separate from regular active skills (see equipClip.ts). */
+  fromSenyu: boolean
 }
 
 export interface FoundSet {
@@ -58,8 +63,23 @@ export interface FoundSet {
   arm: string
   waist: string
   leg: string
+  /** Every decoration used in this set, flattened across all 6 slots. */
   decorations: string[]
+  /** The same decorations, broken out per slot (mirrors the original
+   * equipment-clip export's per-piece decoration display) -- empty when
+   * that slot has no decorations. */
+  weaponDecorations: string[]
+  headDecorations: string[]
+  bodyDecorations: string[]
+  armDecorations: string[]
+  waistDecorations: string[]
+  legDecorations: string[]
   totalDefense: number
+  resistances: Elemental
+  /** Distinct Teni-tree skill names present on this loadout (membership
+   * only) -- the original's equipment-clip export lists these in their own
+   * section, separate from regular active skills. */
+  teniSkillNames: string[]
   activeSkills: FoundSkill[]
 }
 

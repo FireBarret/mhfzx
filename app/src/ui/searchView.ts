@@ -20,7 +20,8 @@ import {
   toggleFavorite,
   type SkillSet,
 } from './skillGroups'
-import { getAllTagNames, getItemNamesForTag } from './itemTags'
+import { getAllTagNames, getItemNamesForTag, getTags } from './itemTags'
+import { copyImageClipToClipboard, copyTextClipToClipboard, downloadImageClip } from './equipClip'
 
 interface TargetRow {
   skillName: string
@@ -45,6 +46,19 @@ let skillSearchText = ''
 let allowedEquipTypes = new Set<string>()
 let presets: Partial<Record<PresetSlot, { name: string; decorations: string[] }>> = {}
 let tagFilter = ''
+/** Restricts the preset-slot piece/decoration pickers (the <datalist>
+ * options behind each preset's text input) to items tagged with any of
+ * these tags -- mirrors the original's EditEquipDialog tag-checklist
+ * filter (decompiled source: a multi-check ListView of tags plus an
+ * "include untagged" toggle). Empty set = unfiltered (show everything),
+ * matching the original's default state. Session-only, not persisted --
+ * a picker convenience, not search-affecting state. */
+let presetTagFilter = new Set<string>()
+// Defaults to false: checking a tag should narrow the picker down to just
+// that tag's items (the whole point of "only show what I already have"),
+// not quietly include the rest of the untagged dataset too. "+ untagged"
+// is an opt-in widen, not the default.
+let presetIncludeUntagged = false
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -312,10 +326,79 @@ function presetDatalistId(slot: PresetSlot): string {
   return `preset-piece-list-${slot}`
 }
 
-function renderPresetsPanel(root: HTMLElement) {
-  const body = root.querySelector<HTMLTableSectionElement>('#presets-body')!
+/** Names allowed through the preset pickers given the current tag filter,
+ * or `null` when unfiltered (no tags checked) -- mirrors
+ * EditEquipDialog's `(hasNullTag && item.Tags.Count==0) || item.Tags.Any(checkedTags.Contains)`
+ * filter predicate from the decompiled source. */
+function presetAllowedNames(allNames: string[]): Set<string> | null {
+  if (presetTagFilter.size === 0) return null
+  const allowed = new Set<string>()
+  for (const tag of presetTagFilter) {
+    for (const name of getItemNamesForTag(tag) ?? []) allowed.add(name)
+  }
+  if (presetIncludeUntagged) {
+    const taggedAnywhere = new Set(getTags().flatMap((t) => t.itemKeys))
+    for (const name of allNames) if (!taggedAnywhere.has(name)) allowed.add(name)
+  }
+  return allowed
+}
+
+/** Rebuilds just the preset pickers' <datalist> option sets (not the whole
+ * table), so toggling the tag filter doesn't clobber whatever's already
+ * typed into each preset's piece/decoration inputs. */
+function rebuildPresetDatalists(root: HTMLElement) {
   const datalists = root.querySelector<HTMLDivElement>('#presets-datalists')!
   const gameData = appState.gameData
+  if (!gameData) {
+    datalists.innerHTML = ''
+    return
+  }
+  const pieceDatalists = PRESET_SLOTS.map(({ key }) => {
+    const pool = armorPoolFor(gameData, key) as { name: string }[]
+    const allowed = presetAllowedNames(pool.map((p) => p.name))
+    const filtered = allowed ? pool.filter((p) => allowed.has(p.name)) : pool
+    return `<datalist id="${presetDatalistId(key)}">${filtered.map((p) => `<option value="${escapeHtml(p.name)}">`).join('')}</datalist>`
+  }).join('')
+  const jewelAllowed = presetAllowedNames(gameData.jewels.map((j) => j.name))
+  const filteredJewels = jewelAllowed ? gameData.jewels.filter((j) => jewelAllowed.has(j.name)) : gameData.jewels
+  const jewelDatalist = `<datalist id="preset-jewel-list">${filteredJewels.map((j) => `<option value="${escapeHtml(j.name)}">`).join('')}</datalist>`
+  datalists.innerHTML = pieceDatalists + jewelDatalist
+}
+
+/** Exported for the same reason as `renderTagFilter`: tags change on the
+ * Data Browser tab, so main.ts refreshes this when switching back. */
+export function renderPresetTagFilter(root: HTMLElement) {
+  const el = root.querySelector<HTMLDivElement>('#presets-tag-filter')!
+  const tagNames = getAllTagNames()
+  if (tagNames.length === 0) {
+    el.innerHTML = '<span class="skill-tier-note">Tag items in the Data Browser to filter these pickers to what you already have.</span>'
+    rebuildPresetDatalists(root)
+    return
+  }
+  el.innerHTML = [
+    '<span>Only show tagged:</span>',
+    ...tagNames.map(
+      (t) =>
+        `<label class="equip-type-option"><input type="checkbox" class="preset-tag-checkbox" value="${escapeHtml(t)}" ${presetTagFilter.has(t) ? 'checked' : ''}> ${escapeHtml(t)}</label>`,
+    ),
+    `<label class="equip-type-option"><input type="checkbox" id="preset-include-untagged" ${presetIncludeUntagged ? 'checked' : ''}> + untagged</label>`,
+  ].join('')
+  el.querySelectorAll<HTMLInputElement>('.preset-tag-checkbox').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) presetTagFilter.add(cb.value)
+      else presetTagFilter.delete(cb.value)
+      rebuildPresetDatalists(root)
+    })
+  })
+  rebuildPresetDatalists(root)
+  el.querySelector<HTMLInputElement>('#preset-include-untagged')!.addEventListener('change', (e) => {
+    presetIncludeUntagged = (e.target as HTMLInputElement).checked
+    rebuildPresetDatalists(root)
+  })
+}
+
+function renderPresetsPanel(root: HTMLElement) {
+  const body = root.querySelector<HTMLTableSectionElement>('#presets-body')!
 
   body.innerHTML = PRESET_SLOTS.map(({ key, label }) => {
     const preset = presets[key]
@@ -327,14 +410,8 @@ function renderPresetsPanel(root: HTMLElement) {
     </tr>`
   }).join('')
 
-  datalists.innerHTML = gameData
-    ? PRESET_SLOTS.map(
-        ({ key }) =>
-          `<datalist id="${presetDatalistId(key)}">${(armorPoolFor(gameData, key) as { name: string }[])
-            .map((p) => `<option value="${escapeHtml(p.name)}">`)
-            .join('')}</datalist>`,
-      ).join('') + `<datalist id="preset-jewel-list">${gameData.jewels.map((j) => `<option value="${escapeHtml(j.name)}">`).join('')}</datalist>`
-    : ''
+  renderPresetTagFilter(root)
+  rebuildPresetDatalists(root)
 
   body.querySelectorAll<HTMLInputElement>('.preset-piece-input').forEach((input) => {
     input.addEventListener('change', () => {
@@ -547,6 +624,7 @@ export function renderSearchView(container: HTMLElement) {
 
       <fieldset class="presets-fieldset">
         <legend>Preset Equipment (optional — fixes a piece and its decorations, search fills the rest)</legend>
+        <div id="presets-tag-filter" class="equip-type-filter"></div>
         <div class="table-scroll" style="max-height:170px;">
           <table>
             <thead><tr><th>Slot</th><th>Piece</th><th>Decorations (comma-separated)</th><th></th></tr></thead>
@@ -570,7 +648,11 @@ export function renderSearchView(container: HTMLElement) {
 
       <div class="detail-panes">
         <fieldset class="detail-equip-fieldset">
-          <legend>Selected Set — Equipment</legend>
+          <legend>Selected Set — Equipment
+            <button type="button" id="clip-copy-text-btn" class="save-set-btn" title="Copy this set as text">Copy as Text</button>
+            <button type="button" id="clip-copy-image-btn" class="save-set-btn" title="Copy this set as an image">Copy as Image</button>
+            <button type="button" id="clip-save-image-btn" class="save-set-btn" title="Save this set as a .png">Save as PNG…</button>
+          </legend>
           <div class="table-scroll" style="max-height:170px;">
             <table>
               <thead><tr>
@@ -582,6 +664,7 @@ export function renderSearchView(container: HTMLElement) {
             </table>
           </div>
           <div id="detail-decorations" class="skill-tier-note"></div>
+          <div id="clip-status" class="skill-tier-note"></div>
         </fieldset>
         <fieldset class="detail-skills-fieldset">
           <legend>Selected Set — Active Skills</legend>
@@ -641,6 +724,57 @@ export function renderSearchView(container: HTMLElement) {
     })
     saveSkillSet(name, entries)
     renderSkillTree(container)
+  })
+
+  const clipCopyTextBtn = container.querySelector<HTMLButtonElement>('#clip-copy-text-btn')!
+  const clipCopyImageBtn = container.querySelector<HTMLButtonElement>('#clip-copy-image-btn')!
+  const clipSaveImageBtn = container.querySelector<HTMLButtonElement>('#clip-save-image-btn')!
+
+  function setClipStatus(text: string) {
+    container.querySelector<HTMLDivElement>('#clip-status')!.textContent = text
+  }
+
+  function selectedResultOrWarn(): FoundSet | null {
+    if (selectedIndex === null || !appState.gameData) {
+      setClipStatus('Select a result row first.')
+      return null
+    }
+    return lastResults[selectedIndex]
+  }
+
+  ;[clipCopyTextBtn, clipCopyImageBtn, clipSaveImageBtn].forEach((btn) => btn.addEventListener('click', (e) => e.preventDefault()))
+
+  clipCopyTextBtn.addEventListener('click', async () => {
+    const result = selectedResultOrWarn()
+    if (!result) return
+    try {
+      await copyTextClipToClipboard(result, appState.gameData!, jobSelect.value as JobFilter)
+      setClipStatus('Copied as text.')
+    } catch (err) {
+      setClipStatus(`Copy failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  })
+
+  clipCopyImageBtn.addEventListener('click', async () => {
+    const result = selectedResultOrWarn()
+    if (!result) return
+    try {
+      await copyImageClipToClipboard(result, appState.gameData!, jobSelect.value as JobFilter)
+      setClipStatus('Copied as image.')
+    } catch (err) {
+      setClipStatus(`Copying as an image isn't supported in this browser (${err instanceof Error ? err.message : String(err)}) — try "Save as PNG…" instead.`)
+    }
+  })
+
+  clipSaveImageBtn.addEventListener('click', async () => {
+    const result = selectedResultOrWarn()
+    if (!result) return
+    try {
+      await downloadImageClip(result, appState.gameData!, jobSelect.value as JobFilter)
+      setClipStatus('Saved as PNG.')
+    } catch (err) {
+      setClipStatus(`Save failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
   })
 
   runBtn.addEventListener('click', () => {

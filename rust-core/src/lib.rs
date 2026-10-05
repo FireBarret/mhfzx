@@ -36,9 +36,17 @@ pub struct SearchRequest {
     #[serde(default)]
     pub equip_types: Vec<String>,
     /// Fixed pieces (and their fixed decorations) for any subset of the 6
-    /// equip slots. See `search::SearchPresets`.
+    /// equip slots. See `search::SearchPresets`. `Option`, not a bare
+    /// `SearchPresets` with `#[serde(default)]` -- that default only kicks
+    /// in when the key is *absent* from the JS object. The TS side's
+    /// `presets?: SearchPresets` instead sends the key present with value
+    /// `undefined` when unset, which crosses the wasm-bindgen boundary as
+    /// an explicit "unit" value and fails to deserialize as a struct;
+    /// `Option<T>` is what correctly accepts that (confirmed live: search
+    /// threw "invalid type: unit value, expected struct SearchPresets"
+    /// before this fix).
     #[serde(default)]
-    pub presets: search::SearchPresets,
+    pub presets: Option<search::SearchPresets>,
 }
 
 fn parse_job(job: &str) -> Result<schema::Job, JsValue> {
@@ -65,7 +73,7 @@ pub fn search_wasm(game_data: JsValue, request: JsValue) -> Result<JsValue, JsVa
         job: parse_job(&request.job)?,
         max_results: request.max_results,
         allowed_equip_types: request.equip_types,
-        presets: request.presets,
+        presets: request.presets.unwrap_or_default(),
     };
     let results = search::search(&data, &input).map_err(|e| JsValue::from_str(&e))?;
     serde_wasm_bindgen::to_value(&results).map_err(|e| JsValue::from_str(&format!("failed to serialize results: {e}")))
