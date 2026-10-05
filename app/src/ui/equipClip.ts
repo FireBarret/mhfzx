@@ -93,6 +93,18 @@ export function formatEquipTextClip(result: FoundSet, gameData: GameData, job: J
       out.push(`        ${l.slots}  ${l.decorations}`)
     }
   }
+  // Skill cuffs are a separate equip slot (the "clothes" item), matching
+  // the original's own PigClothes line in its equipment-clip export. A
+  // Hiden cuff doesn't consume the clothes' own slot capacity (see
+  // schema.ts's SkillCuffCategory doc comment), so only Normal cuffs'
+  // slot values count toward the dots, same as the search-side validation.
+  if (result.clothes) {
+    const clothes = gameData.clothes.find((c) => c.name === result.clothes)
+    const cuffData = result.skillCuffs.map((name) => gameData.skillCuffs.find((c) => c.name === name))
+    const usedSlots = cuffData.reduce((sum, c) => sum + (c && c.category === 'Normal' ? c.slot : 0), 0)
+    out.push(`Cuffs   ${result.clothes}`)
+    out.push(`        ${slotDots(clothes?.slot ?? 0, usedSlots)}  ${result.skillCuffs.length > 0 ? result.skillCuffs.join(', ') : '—'}`)
+  }
   out.push('')
   const r = result.resistances
   out.push(

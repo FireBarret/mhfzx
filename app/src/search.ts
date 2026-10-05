@@ -25,6 +25,15 @@ export interface PiecePreset {
   decorations: string[]
 }
 
+/** A fixed skill-cuff loadout -- a "clothes" item (the layered outfit that
+ * grants 2 cuff slots) plus 0-2 skill cuffs to attach to it. Like armor/
+ * weapon presets, this is search-fixed, not something the search chooses
+ * freely. */
+export interface CuffsPreset {
+  clothesName: string
+  cuffNames: string[]
+}
+
 export interface SearchPresets {
   head?: PiecePreset
   body?: PiecePreset
@@ -32,6 +41,7 @@ export interface SearchPresets {
   waist?: PiecePreset
   leg?: PiecePreset
   weapon?: PiecePreset
+  cuffs?: CuffsPreset
 }
 
 export interface SearchRequest {
@@ -81,6 +91,10 @@ export interface FoundSet {
    * section, separate from regular active skills. */
   teniSkillNames: string[]
   activeSkills: FoundSkill[]
+  /** `null` unless a `CuffsPreset` was given -- skill cuffs are preset-only,
+   * so this is always identical across every result in a given search. */
+  clothes: string | null
+  skillCuffs: string[]
 }
 
 export function runSearch(gameData: GameData, request: SearchRequest): FoundSet[] {

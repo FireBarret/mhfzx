@@ -45,6 +45,7 @@ let expandedGroups = new Set<string>()
 let skillSearchText = ''
 let allowedEquipTypes = new Set<string>()
 let presets: Partial<Record<PresetSlot, { name: string; decorations: string[] }>> = {}
+let cuffsPreset: { clothesName: string; cuffNames: string[] } | undefined = undefined
 let tagFilter = ''
 /** Restricts the preset-slot piece/decoration pickers (the <datalist>
  * options behind each preset's text input) to items tagged with any of
@@ -259,6 +260,7 @@ function persistSearchSession(root: HTMLElement) {
     maxResults: Number(maxResultsInput.value) || 20,
     equipTypes: Array.from(allowedEquipTypes),
     presets: { ...presets },
+    cuffsPreset: cuffsPreset ? { ...cuffsPreset } : undefined,
     tagFilter,
   })
 }
@@ -362,7 +364,13 @@ function rebuildPresetDatalists(root: HTMLElement) {
   const jewelAllowed = presetAllowedNames(gameData.jewels.map((j) => j.name))
   const filteredJewels = jewelAllowed ? gameData.jewels.filter((j) => jewelAllowed.has(j.name)) : gameData.jewels
   const jewelDatalist = `<datalist id="preset-jewel-list">${filteredJewels.map((j) => `<option value="${escapeHtml(j.name)}">`).join('')}</datalist>`
-  datalists.innerHTML = pieceDatalists + jewelDatalist
+
+  const clothesDatalist = `<datalist id="preset-clothes-list">${gameData.clothes.map((c) => `<option value="${escapeHtml(c.name)}">`).join('')}</datalist>`
+  const cuffAllowed = presetAllowedNames(gameData.skillCuffs.map((c) => c.name))
+  const filteredCuffs = cuffAllowed ? gameData.skillCuffs.filter((c) => cuffAllowed.has(c.name)) : gameData.skillCuffs
+  const cuffDatalist = `<datalist id="preset-cuff-list">${filteredCuffs.map((c) => `<option value="${escapeHtml(c.name)}">`).join('')}</datalist>`
+
+  datalists.innerHTML = pieceDatalists + jewelDatalist + clothesDatalist + cuffDatalist
 }
 
 /** Exported for the same reason as `renderTagFilter`: tags change on the
@@ -400,7 +408,7 @@ export function renderPresetTagFilter(root: HTMLElement) {
 function renderPresetsPanel(root: HTMLElement) {
   const body = root.querySelector<HTMLTableSectionElement>('#presets-body')!
 
-  body.innerHTML = PRESET_SLOTS.map(({ key, label }) => {
+  const armorRows = PRESET_SLOTS.map(({ key, label }) => {
     const preset = presets[key]
     return `<tr>
       <td>${label}</td>
@@ -409,6 +417,20 @@ function renderPresetsPanel(root: HTMLElement) {
       <td><button type="button" class="preset-clear-btn" data-slot="${key}" title="Clear this preset">✕</button></td>
     </tr>`
   }).join('')
+
+  // Skill Cuffs: a "clothes" item (the layered outfit granting 2 cuff
+  // slots) plus up to 2 cuffs to attach to it -- a separate row shape from
+  // the armor/weapon rows above since it's a two-part preset (Rust-side
+  // validates count/category/capacity/series restrictions; see
+  // resolve_cuffs_preset's doc comment).
+  const cuffsRow = `<tr>
+    <td>Skill Cuffs</td>
+    <td><input type="text" class="preset-clothes-input" list="preset-clothes-list" value="${escapeHtml(cuffsPreset?.clothesName ?? '')}" placeholder="clothes item"></td>
+    <td><input type="text" class="preset-cuffs-input" list="preset-cuff-list" value="${escapeHtml((cuffsPreset?.cuffNames ?? []).join(', '))}" placeholder="cuff, cuff (max 2)"></td>
+    <td><button type="button" class="preset-cuffs-clear-btn" title="Clear this preset">✕</button></td>
+  </tr>`
+
+  body.innerHTML = armorRows + cuffsRow
 
   renderPresetTagFilter(root)
   rebuildPresetDatalists(root)
@@ -444,13 +466,38 @@ function renderPresetsPanel(root: HTMLElement) {
       persistSearchSession(root)
     })
   })
+
+  const clothesInput = body.querySelector<HTMLInputElement>('.preset-clothes-input')!
+  const cuffsInput = body.querySelector<HTMLInputElement>('.preset-cuffs-input')!
+  clothesInput.addEventListener('change', () => {
+    const clothesName = clothesInput.value.trim()
+    if (!clothesName) cuffsPreset = undefined
+    else cuffsPreset = { clothesName, cuffNames: cuffsPreset?.cuffNames ?? [] }
+    persistSearchSession(root)
+  })
+  cuffsInput.addEventListener('change', () => {
+    const cuffNames = cuffsInput.value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+    if (cuffsPreset) cuffsPreset.cuffNames = cuffNames
+    else if (cuffNames.length > 0) cuffsPreset = { clothesName: '', cuffNames }
+    persistSearchSession(root)
+  })
+  body.querySelector<HTMLButtonElement>('.preset-cuffs-clear-btn')!.addEventListener('click', () => {
+    cuffsPreset = undefined
+    renderPresetsPanel(root)
+    persistSearchSession(root)
+  })
 }
 
 function buildSearchPresets(): SearchPresets | undefined {
   const entries = Object.entries(presets).filter(([, v]) => v && v.name.trim().length > 0) as [PresetSlot, PiecePreset][]
-  if (entries.length === 0) return undefined
+  const hasCuffs = cuffsPreset && cuffsPreset.clothesName.trim().length > 0
+  if (entries.length === 0 && !hasCuffs) return undefined
   const result: SearchPresets = {}
   for (const [slot, preset] of entries) result[slot] = preset
+  if (hasCuffs) result.cuffs = cuffsPreset
   return result
 }
 
@@ -572,7 +619,9 @@ function renderDetailPanes(root: HTMLElement) {
     .map((s, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(s.skillName)}</td><td>${s.point}</td><td>${escapeHtml(s.optionName)}</td></tr>`)
     .join('')
 
-  decoNote.textContent = r.decorations.length > 0 ? `Decorations used: ${r.decorations.join(', ')}` : 'No decorations used.'
+  const decoText = r.decorations.length > 0 ? `Decorations used: ${r.decorations.join(', ')}` : 'No decorations used.'
+  const cuffText = r.clothes ? ` | ${r.clothes}${r.skillCuffs.length > 0 ? `: ${r.skillCuffs.join(', ')}` : ''}` : ''
+  decoNote.textContent = decoText + cuffText
 }
 
 function setResultsSummary(root: HTMLElement, text: string) {
@@ -696,6 +745,7 @@ export function renderSearchView(container: HTMLElement) {
     maxResultsInput.value = String(savedSession.maxResults)
     allowedEquipTypes = new Set(savedSession.equipTypes ?? [])
     presets = { ...(savedSession.presets ?? {}) }
+    cuffsPreset = savedSession.cuffsPreset ? { ...savedSession.cuffsPreset } : undefined
     tagFilter = savedSession.tagFilter ?? ''
   }
 

@@ -15,7 +15,10 @@
 //! changing this module's shape.
 
 use crate::evaluator::{evaluate_loadout, ActiveSkill, EquippedPiece, Loadout};
-use crate::schema::{Elemental, EquipData, GameData, Job, JewelData, SkillName, WeaponData};
+use crate::schema::{
+    ClothesData, Elemental, EquipData, GameData, Job, JewelData, SkillCuffCategory, SkillCuffData, SkillCuffFamily, SkillName,
+    WeaponData,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -82,6 +85,22 @@ pub struct SearchPresets {
     pub waist: Option<PiecePreset>,
     pub leg: Option<PiecePreset>,
     pub weapon: Option<PiecePreset>,
+    pub cuffs: Option<CuffsPreset>,
+}
+
+/// A fixed skill-cuff loadout (by exact names) -- mirrors the original's
+/// `PigClothes`: a "clothes" item (`conf/Clothes.xml`, the layered outfit
+/// that grants 2 cuff slots) plus 0-2 skill cuffs to attach to it. Like
+/// armor/weapon presets, this bypasses the search entirely -- the caller
+/// chose these cuffs explicitly (real community cuffs are precious enough
+/// that "let the search pick for you" isn't the useful feature here; fixing
+/// what you actually have is).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CuffsPreset {
+    pub clothes_name: String,
+    #[serde(default)]
+    pub cuff_names: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,6 +151,11 @@ pub struct FoundSet {
     /// separate from regular active skills.
     pub teni_skill_names: Vec<String>,
     pub active_skills: Vec<FoundSkill>,
+    /// `None` unless a `CuffsPreset` was given -- skill cuffs are
+    /// preset-only (see `CuffsPreset`'s doc comment), so this is always
+    /// identical across every result in a given search.
+    pub clothes: Option<String>,
+    pub skill_cuffs: Vec<String>,
 }
 
 const MAX_CANDIDATES_PER_SLOT: usize = 24;
@@ -315,6 +339,11 @@ struct SearchState<'a> {
     /// first exhausting the whole budget before any other weapon is tried.
     per_weapon_cap: usize,
     weapon_pass_start_count: usize,
+    /// The resolved cuffs preset, if any (see `CuffsPreset`/
+    /// `resolve_cuffs_preset`) — fixed for the whole search, included
+    /// verbatim in every accepted result's `Loadout.skill_cuffs` since
+    /// cuffs aren't a search dimension, only a preset one.
+    cuffs: Option<(&'a ClothesData, Vec<&'a SkillCuffData>)>,
 }
 
 impl SearchState<'_> {
@@ -559,7 +588,7 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
         waist: EquippedPiece { data: pieces[3], level: best_level(pieces[3]).level },
         leg: EquippedPiece { data: pieces[4], level: best_level(pieces[4]).level },
         decorations: decorations.clone(),
-        skill_cuffs: vec![],
+        skill_cuffs: state.cuffs.as_ref().map(|(_, cuffs)| cuffs.clone()).unwrap_or_default(),
     };
 
     // Soundness gate: every accepted result is re-checked by the same
@@ -630,6 +659,8 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
             names
         },
         active_skills,
+        clothes: state.cuffs.as_ref().map(|(clothes, _)| clothes.name.clone()),
+        skill_cuffs: state.cuffs.as_ref().map(|(_, cuffs)| cuffs.iter().map(|c| c.name.clone()).collect()).unwrap_or_default(),
     });
 }
 
@@ -716,6 +747,63 @@ fn resolve_preset_decorations<'a>(
     Ok(decorations)
 }
 
+/// Resolves and validates a `CuffsPreset` against real `ClothesData`/
+/// `SkillCuffData`, mirroring `PigClothes.SetJewelry`/`CanAttach` (decompiled
+/// source) exactly:
+/// - at most 2 cuffs attached in total, regardless of category;
+/// - at most 1 Hiden (秘伝) cuff -- Hiden cuffs never consume the clothes'
+///   own `slot` capacity (`PigClothes.GetFilledSlotNum` explicitly excludes
+///   them), so this is a separate count from the capacity check below;
+/// - Normal cuffs' `slot` values summed must not exceed the clothes' own
+///   `slot` capacity;
+/// - an S-restricted clothes item (`Type="S"` in conf/Clothes.xml) rejects
+///   any `Power`-family cuff outright, regardless of slot/category.
+fn resolve_cuffs_preset<'a>(
+    preset: &Option<CuffsPreset>,
+    clothes_pool: &'a [ClothesData],
+    cuffs_pool: &'a [SkillCuffData],
+) -> Result<Option<(&'a ClothesData, Vec<&'a SkillCuffData>)>, String> {
+    let Some(p) = preset else { return Ok(None) };
+    let clothes = clothes_pool
+        .iter()
+        .find(|c| c.name == p.clothes_name)
+        .ok_or_else(|| format!("preset clothes not found: {}", p.clothes_name))?;
+
+    if p.cuff_names.len() > 2 {
+        return Err(format!("at most 2 skill cuffs may be attached, got {}", p.cuff_names.len()));
+    }
+
+    let mut cuffs = Vec::with_capacity(p.cuff_names.len());
+    let mut hiden_count = 0u8;
+    let mut normal_capacity_used: u16 = 0;
+    for name in &p.cuff_names {
+        let cuff = cuffs_pool.iter().find(|c| &c.name == name).ok_or_else(|| format!("preset skill cuff not found: {name}"))?;
+        if clothes.s_restricted && cuff.family == SkillCuffFamily::Power {
+            return Err(format!("\"{}\" is S-restricted and cannot take Power-family cuff \"{name}\"", p.clothes_name));
+        }
+        match cuff.category {
+            SkillCuffCategory::Hiden => {
+                hiden_count += 1;
+                if hiden_count > 1 {
+                    return Err(format!("only 1 Hiden skill cuff may be attached, got a second: \"{name}\""));
+                }
+            }
+            SkillCuffCategory::Normal => {
+                normal_capacity_used += cuff.slot as u16;
+            }
+        }
+        cuffs.push(cuff);
+    }
+    if normal_capacity_used > clothes.slot as u16 {
+        return Err(format!(
+            "preset skill cuffs for \"{}\" need {normal_capacity_used} slot capacity but it only has {}",
+            p.clothes_name, clothes.slot
+        ));
+    }
+
+    Ok(Some((clothes, cuffs)))
+}
+
 /// Builds one armor slot's `SlotCandidates` plus how much of that piece's
 /// own capacity its preset decorations (if any) already consumed. A preset
 /// slot always has exactly one candidate (the chosen piece) and bypasses
@@ -752,6 +840,7 @@ pub fn search(data: &GameData, input: &SearchInput) -> Result<Vec<FoundSet>, Str
     let waist_preset = resolve_armor_preset(&input.presets.waist, &data.waist, &data.jewels)?;
     let leg_preset = resolve_armor_preset(&input.presets.leg, &data.leg, &data.jewels)?;
     let weapon_preset = resolve_weapon_preset(&input.presets.weapon, &data.weapons, &data.jewels)?;
+    let cuffs_preset = resolve_cuffs_preset(&input.presets.cuffs, &data.clothes, &data.skill_cuffs)?;
 
     let (head_slot, head_reserved) =
         build_armor_slot(&head_preset, &data.head, input.job, &target_names, &input.allowed_equip_types, &input.targets);
@@ -798,18 +887,26 @@ pub fn search(data: &GameData, input: &SearchInput) -> Result<Vec<FoundSet>, Str
     if let Some((_, decorations)) = &weapon_preset {
         preset_decorations.extend(decorations.iter().map(|j| (EquipSlot::Weapon, *j)));
     }
-    // Preset decorations' skill contributions are a fixed baseline on top of
-    // whichever weapon is tried — folded into `running` below, once per
-    // weapon pass, the same way a selected weapon's own skills are.
+    // Preset decorations' and preset cuffs' skill contributions are a fixed
+    // baseline on top of whichever weapon is tried — folded into `running`
+    // below, once per weapon pass, the same way a selected weapon's own
+    // skills are.
     let preset_deltas: Vec<i32> = input
         .targets
         .iter()
         .map(|t| {
-            preset_decorations
+            let deco_points: i32 = preset_decorations
                 .iter()
                 .filter_map(|(_, j)| j.skills.iter().find(|s| s.skill_name == t.skill_name))
                 .map(|s| s.point)
-                .sum()
+                .sum();
+            let cuff_points: i32 = cuffs_preset
+                .iter()
+                .flat_map(|(_, cuffs)| cuffs.iter())
+                .filter_map(|c| c.skills.iter().find(|s| s.skill_name == t.skill_name))
+                .map(|s| s.point)
+                .sum();
+            deco_points + cuff_points
         })
         .collect();
 
@@ -829,6 +926,7 @@ pub fn search(data: &GameData, input: &SearchInput) -> Result<Vec<FoundSet>, Str
         preset_decorations,
         armor_reserved_capacity,
         weapon_reserved_capacity,
+        cuffs: cuffs_preset,
     };
 
     let weapon_count = weapon_candidates.len();
@@ -907,6 +1005,24 @@ mod tests {
             skills: skills.into_iter().map(|(n, p)| SkillContribution { skill_name: n.into(), point: p }).collect(),
             costs: vec![],
             sources: vec![],
+        }
+    }
+
+    fn clothes(name: &str, slot: u8, s_restricted: bool) -> ClothesData {
+        ClothesData { name: name.into(), slot, s_restricted }
+    }
+
+    fn skill_cuff(name: &str, family: SkillCuffFamily, category: SkillCuffCategory, slot: u8, skills: Vec<(&str, i32)>) -> SkillCuffData {
+        SkillCuffData {
+            name: name.into(),
+            family,
+            category,
+            class: "(test)".into(),
+            rare: 4,
+            slot,
+            skills: skills.into_iter().map(|(n, p)| SkillContribution { skill_name: n.into(), point: p }).collect(),
+            costs: vec![],
+            abilities: vec![],
         }
     }
 
@@ -1506,6 +1622,204 @@ mod tests {
         let results = search(&data, &input).unwrap();
         assert!(!results.is_empty(), "expected Attack+30 to be reachable via 6 decorations split across head and weapon");
         assert_eq!(results[0].decorations.len(), 6);
+    }
+
+    /// A valid cuffs preset (one Normal 2-slot cuff, exactly filling a
+    /// 2-capacity clothes item) must appear in every result, contribute its
+    /// skill points, and be reported on `FoundSet.clothes`/`skill_cuffs`.
+    #[test]
+    fn cuffs_preset_is_used_in_every_result_and_contributes_points() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes S Slot 2", 2, true)];
+        data.skill_cuffs = vec![skill_cuff("Attack Cuff S2", SkillCuffFamily::Skill, SkillCuffCategory::Normal, 2, vec![("Attack", 10)])];
+        let input = SearchInput {
+            // No armor piece or jewel in two_skill_test_data() alone reaches
+            // 10 -- only the cuff's own +10 does, proving it's actually used.
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset { clothes_name: "Clothes S Slot 2".into(), cuff_names: vec!["Attack Cuff S2".into()] }),
+                ..Default::default()
+            },
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty(), "expected the cuff's own +10 Attack to satisfy the target");
+        for r in &results {
+            assert_eq!(r.clothes.as_deref(), Some("Clothes S Slot 2"));
+            assert_eq!(r.skill_cuffs, vec!["Attack Cuff S2".to_string()]);
+        }
+    }
+
+    /// Two 1-slot Normal cuffs together using the full 2-capacity clothes
+    /// item must both be accepted and both contribute points.
+    #[test]
+    fn two_one_slot_cuffs_fill_the_clothes_capacity() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes P Slot 2", 2, false)];
+        data.skill_cuffs = vec![
+            skill_cuff("Attack Cuff 1a", SkillCuffFamily::Power, SkillCuffCategory::Normal, 1, vec![("Attack", 5)]),
+            skill_cuff("Attack Cuff 1b", SkillCuffFamily::Power, SkillCuffCategory::Normal, 1, vec![("Attack", 5)]),
+        ];
+        let input = SearchInput {
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset {
+                    clothes_name: "Clothes P Slot 2".into(),
+                    cuff_names: vec!["Attack Cuff 1a".into(), "Attack Cuff 1b".into()],
+                }),
+                ..Default::default()
+            },
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty());
+        let mut names = results[0].skill_cuffs.clone();
+        names.sort();
+        assert_eq!(names, vec!["Attack Cuff 1a".to_string(), "Attack Cuff 1b".to_string()]);
+    }
+
+    /// A Hiden cuff doesn't consume the clothes' slot capacity at all, so it
+    /// can be combined with a Normal cuff that alone already uses the full
+    /// capacity (a 2-slot Normal cuff on a 2-capacity clothes item).
+    #[test]
+    fn hiden_cuff_does_not_consume_clothes_capacity() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes P Slot 2", 2, false)];
+        data.skill_cuffs = vec![
+            skill_cuff("Attack Cuff S2", SkillCuffFamily::Power, SkillCuffCategory::Normal, 2, vec![("Attack", 5)]),
+            skill_cuff("Hiden Cuff", SkillCuffFamily::Skill, SkillCuffCategory::Hiden, 0, vec![("Attack", 10)]),
+        ];
+        let input = SearchInput {
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 15 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset {
+                    clothes_name: "Clothes P Slot 2".into(),
+                    cuff_names: vec!["Attack Cuff S2".into(), "Hiden Cuff".into()],
+                }),
+                ..Default::default()
+            },
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty(), "expected a 2-slot Normal cuff + a capacity-free Hiden cuff to both fit");
+    }
+
+    #[test]
+    fn more_than_two_cuffs_is_rejected() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes P Slot 2", 2, false)];
+        data.skill_cuffs = vec![
+            skill_cuff("Hiden A", SkillCuffFamily::Skill, SkillCuffCategory::Hiden, 0, vec![]),
+            skill_cuff("Hiden B", SkillCuffFamily::Skill, SkillCuffCategory::Hiden, 0, vec![]),
+            skill_cuff("Hiden C", SkillCuffFamily::Skill, SkillCuffCategory::Hiden, 0, vec![]),
+        ];
+        let input = SearchInput {
+            targets: vec![],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset {
+                    clothes_name: "Clothes P Slot 2".into(),
+                    cuff_names: vec!["Hiden A".into(), "Hiden B".into(), "Hiden C".into()],
+                }),
+                ..Default::default()
+            },
+        };
+        let err = search(&data, &input).expect_err("more than 2 attached cuffs must be rejected");
+        assert!(err.contains('2'));
+    }
+
+    #[test]
+    fn a_second_hiden_cuff_is_rejected() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes P Slot 2", 2, false)];
+        data.skill_cuffs = vec![
+            skill_cuff("Hiden A", SkillCuffFamily::Skill, SkillCuffCategory::Hiden, 0, vec![]),
+            skill_cuff("Hiden B", SkillCuffFamily::Skill, SkillCuffCategory::Hiden, 0, vec![]),
+        ];
+        let input = SearchInput {
+            targets: vec![],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset {
+                    clothes_name: "Clothes P Slot 2".into(),
+                    cuff_names: vec!["Hiden A".into(), "Hiden B".into()],
+                }),
+                ..Default::default()
+            },
+        };
+        let err = search(&data, &input).expect_err("a second Hiden cuff must be rejected");
+        assert!(err.contains("Hiden"));
+    }
+
+    #[test]
+    fn normal_cuff_slots_exceeding_clothes_capacity_is_rejected() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes P Slot 2", 2, false)];
+        data.skill_cuffs = vec![
+            skill_cuff("Attack Cuff 2a", SkillCuffFamily::Power, SkillCuffCategory::Normal, 2, vec![]),
+            skill_cuff("Attack Cuff 1b", SkillCuffFamily::Power, SkillCuffCategory::Normal, 1, vec![]),
+        ];
+        let input = SearchInput {
+            targets: vec![],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset {
+                    clothes_name: "Clothes P Slot 2".into(),
+                    cuff_names: vec!["Attack Cuff 2a".into(), "Attack Cuff 1b".into()],
+                }),
+                ..Default::default()
+            },
+        };
+        let err = search(&data, &input).expect_err("2+1 slots on a 2-capacity clothes item must be rejected");
+        assert!(err.contains("Clothes P Slot 2"));
+    }
+
+    #[test]
+    fn s_restricted_clothes_rejects_a_power_family_cuff() {
+        let mut data = two_skill_test_data();
+        data.clothes = vec![clothes("Clothes S Slot 2", 2, true)];
+        data.skill_cuffs = vec![skill_cuff("Power Cuff", SkillCuffFamily::Power, SkillCuffCategory::Normal, 1, vec![])];
+        let input = SearchInput {
+            targets: vec![],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset { clothes_name: "Clothes S Slot 2".into(), cuff_names: vec!["Power Cuff".into()] }),
+                ..Default::default()
+            },
+        };
+        let err = search(&data, &input).expect_err("an S-restricted clothes item must reject a Power-family cuff");
+        assert!(err.contains("S-restricted"));
+    }
+
+    #[test]
+    fn unknown_preset_clothes_name_returns_an_error() {
+        let data = two_skill_test_data();
+        let input = SearchInput {
+            targets: vec![],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                cuffs: Some(CuffsPreset { clothes_name: "Nonexistent Clothes".into(), cuff_names: vec![] }),
+                ..Default::default()
+            },
+        };
+        let err = search(&data, &input).expect_err("an unknown preset clothes name must be rejected");
+        assert!(err.contains("Nonexistent Clothes"));
     }
 }
 

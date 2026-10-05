@@ -168,6 +168,7 @@ export interface SearchSessionState {
   maxResults: number
   equipTypes?: string[]
   presets?: Partial<Record<'head' | 'body' | 'arm' | 'waist' | 'leg' | 'weapon', { name: string; decorations: string[] }>>
+  cuffsPreset?: { clothesName: string; cuffNames: string[] }
   tagFilter?: string
 }
 

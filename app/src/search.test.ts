@@ -53,4 +53,37 @@ describe('runSearch against real data through the actual wasm-bindgen boundary',
       expect(r.head).toBeTruthy()
     }
   })
+
+  it('accepts a cuffs preset through the wasm boundary and reports it on every result', () => {
+    const gameData = assembleGameData({
+      equipHead: read('dat/EquipHead.xml'),
+      equipBody: read('dat/EquipBody.xml'),
+      equipArm: read('dat/EquipArm.xml'),
+      equipWaist: read('dat/EquipWst.xml'),
+      equipLeg: read('dat/EquipLeg.xml'),
+      weapon: read('dat/Weapon.xml'),
+      jewel: read('dat/Jewel.xml'),
+      skillCuff: read('dat/SkillCuff.xml'),
+      skillBase: read('dat/SkillBase.xml'),
+      teniSkillBase: read('dat/TeniSkillBase.xml'),
+      define: read('conf/Define.xml'),
+      clothes: read('conf/Clothes.xml'),
+    })
+
+    // "SnS・S. Atk" is a real Hiden (秘伝) cuff -- doesn't consume the
+    // clothes' slot capacity, so it's combinable with any Normal cuff too,
+    // but this test only needs it alone to confirm the preset round-trips.
+    const results = runSearch(gameData, {
+      targets: [],
+      job: 'Both',
+      maxResults: 3,
+      presets: { cuffs: { clothesName: 'Clothes P Slot 2', cuffNames: ['SnS・S. Atk'] } },
+    })
+
+    expect(results.length).toBeGreaterThan(0)
+    for (const r of results) {
+      expect(r.clothes).toBe('Clothes P Slot 2')
+      expect(r.skillCuffs).toEqual(['SnS・S. Atk'])
+    }
+  })
 })
