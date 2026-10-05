@@ -9,18 +9,24 @@
 import { assembleGameData, type GameDataSourceFiles } from './import/gameData'
 import type { GameData } from './schema'
 
+// Relative to Vite's configured base path (import.meta.env.BASE_URL), not
+// hardcoded to domain root -- a GitHub Pages *project* site is served from
+// /<repo>/, not /, so an absolute "/default-data/..." path would silently
+// 404 there even though it works fine locally at root. See vite.config.ts's
+// `base` setting (and its own comment) for where that prefix comes from.
+const BASE = import.meta.env.BASE_URL
 const DEFAULT_DATA_PATHS: Record<keyof GameDataSourceFiles, string> = {
-  equipHead: '/default-data/dat/EquipHead.xml',
-  equipBody: '/default-data/dat/EquipBody.xml',
-  equipArm: '/default-data/dat/EquipArm.xml',
-  equipWaist: '/default-data/dat/EquipWst.xml',
-  equipLeg: '/default-data/dat/EquipLeg.xml',
-  weapon: '/default-data/dat/Weapon.xml',
-  jewel: '/default-data/dat/Jewel.xml',
-  skillCuff: '/default-data/dat/SkillCuff.xml',
-  skillBase: '/default-data/dat/SkillBase.xml',
-  teniSkillBase: '/default-data/dat/TeniSkillBase.xml',
-  define: '/default-data/conf/Define.xml',
+  equipHead: `${BASE}default-data/dat/EquipHead.xml`,
+  equipBody: `${BASE}default-data/dat/EquipBody.xml`,
+  equipArm: `${BASE}default-data/dat/EquipArm.xml`,
+  equipWaist: `${BASE}default-data/dat/EquipWst.xml`,
+  equipLeg: `${BASE}default-data/dat/EquipLeg.xml`,
+  weapon: `${BASE}default-data/dat/Weapon.xml`,
+  jewel: `${BASE}default-data/dat/Jewel.xml`,
+  skillCuff: `${BASE}default-data/dat/SkillCuff.xml`,
+  skillBase: `${BASE}default-data/dat/SkillBase.xml`,
+  teniSkillBase: `${BASE}default-data/dat/TeniSkillBase.xml`,
+  define: `${BASE}default-data/conf/Define.xml`,
 }
 
 async function fetchText(path: string): Promise<string | null> {
