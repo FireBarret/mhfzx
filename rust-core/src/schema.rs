@@ -213,6 +213,10 @@ pub struct SkillBaseEntry {
     pub no: u32,
     pub id: String,
     pub name: SkillName,
+    /// The enclosing `<SkillType TypeName="...">` group — the original
+    /// app's real skill-category tree grouping, not an invented one (see
+    /// `app/src/data/schema.ts`'s matching field doc comment).
+    pub category: String,
     pub skill_rank: bool, // present-and-"1" in source XML; modeled as a flag
     pub options: Vec<SkillOption>, // descending point ladder, +max down to negative
 }

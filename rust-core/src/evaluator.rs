@@ -451,6 +451,7 @@ mod tests {
             no: 1,
             id: "0001".into(),
             name: "Attack".into(),
+            category: "Offense and Adren".into(),
             skill_rank: false,
             options: vec![
                 SkillOption {

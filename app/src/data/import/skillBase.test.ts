@@ -13,6 +13,7 @@ describe('parseSkillBaseFile', () => {
       no: 31,
       id: '0950',
       name: 'Health',
+      category: 'Health and Stamina',
       skillRank: true,
       options: [
         { name: 'Health +50', point: 40 },
@@ -30,6 +31,28 @@ describe('parseSkillBaseFile', () => {
   it('models SkillRank as a boolean, true only when the source value is "1"', () => {
     expect(entries.some((e) => e.skillRank === true)).toBe(true)
     expect(entries.filter((e) => e.skillRank).length).toBeLessThan(entries.length)
+  })
+
+  it('captures all 16 real skill categories, in document order, matching the original app\'s tree', () => {
+    const categoriesInOrder = [...new Set(entries.map((e) => e.category))]
+    expect(categoriesInOrder).toEqual([
+      'Health and Stamina',
+      'Offense and Adren',
+      'Elemental Attack',
+      'Guard and Defense',
+      'Blademaster',
+      'Sword Crystals',
+      'Gunning',
+      'Hiden Skills',
+      'Elemental Resistance',
+      'Status Resistance',
+      'Protection and Evasion',
+      'Items and Combination',
+      'Map and Detection',
+      'Gathering and Transport',
+      'Rewards',
+      'Other',
+    ])
   })
 })
 

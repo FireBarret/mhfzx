@@ -1,6 +1,8 @@
 import './style.css'
 import init from 'mhfz-core'
 import { loadGameDataFromFileList, MissingFilesError } from './data/browserLoad'
+import { tryLoadDefaultGameData } from './data/defaultLoad'
+import type { GameData } from './data/schema'
 import { appState } from './ui/appState'
 import { renderSearchView } from './ui/searchView'
 import { renderDataBrowserView } from './ui/dataBrowserView'
@@ -77,6 +79,11 @@ document.addEventListener('click', () => menuItems.forEach((m) => m.classList.re
 
 document.querySelector<HTMLButtonElement>('[data-action="load-folder"]')!.addEventListener('click', () => folderInput.click())
 
+function describeGameData(gameData: GameData) {
+  const total = gameData.head.length + gameData.body.length + gameData.arm.length + gameData.waist.length + gameData.leg.length
+  return `Loaded ${total} armor pieces, ${gameData.jewels.length} jewels, ${gameData.weapons.length} weapons.`
+}
+
 folderInput.addEventListener('change', async () => {
   const files = folderInput.files
   if (!files || files.length === 0) return
@@ -84,8 +91,7 @@ folderInput.addEventListener('change', async () => {
   try {
     const gameData = await loadGameDataFromFileList(files)
     appState.setGameData(gameData)
-    const total = gameData.head.length + gameData.body.length + gameData.arm.length + gameData.waist.length + gameData.leg.length
-    statusEl.textContent = `Loaded ${total} armor pieces, ${gameData.jewels.length} jewels, ${gameData.weapons.length} weapons.`
+    statusEl.textContent = describeGameData(gameData)
   } catch (err) {
     if (err instanceof MissingFilesError) {
       statusEl.textContent = `Folder is missing required files: ${err.missing.join(', ')}. Select the app's root folder (containing dat/ and conf/).`
@@ -96,9 +102,20 @@ folderInput.addEventListener('change', async () => {
 })
 
 init()
-  .then(() => {
+  .then(async () => {
     appState.setWasmReady()
-    statusEl.textContent = 'Ready — File > Load Data Folder… to begin.'
+    statusEl.textContent = 'Checking for bundled default data…'
+    // Auto-load a bundled dataset if one is present (public/default-data/,
+    // gitignored -- a local convenience copy, not shipped in the repo), so
+    // the app is usable immediately without "Load Data Folder" every time.
+    // Falls back to the plain "Ready" state silently if none is found.
+    const defaultGameData = await tryLoadDefaultGameData()
+    if (defaultGameData) {
+      appState.setGameData(defaultGameData)
+      statusEl.textContent = `${describeGameData(defaultGameData)} (default data — File > Load Data Folder… to use a different one)`
+    } else {
+      statusEl.textContent = 'Ready — File > Load Data Folder… to begin.'
+    }
   })
   .catch((err) => {
     statusEl.textContent = `Failed to load WASM core: ${err instanceof Error ? err.message : String(err)}`

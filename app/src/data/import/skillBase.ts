@@ -23,11 +23,13 @@ export function parseSkillBaseFile(xmlText: string): SkillBaseEntry[] {
   const skillTypes = asArray(doc.Skill['SkillType'] as Record<string, unknown>[])
   const entries: SkillBaseEntry[] = []
   for (const st of skillTypes) {
+    const category = attrStr(st, 'TypeName')
     for (const data of asArray(st['Data'] as Record<string, unknown>[])) {
       entries.push({
         no: attrNum(data, 'No'),
         id: attrStr(data, 'ID'),
         name: attrStr(data, 'Name'),
+        category,
         skillRank: attrStrOpt(data, 'SkillRank') === '1',
         options: parseOptions(data, 'Option'),
       })

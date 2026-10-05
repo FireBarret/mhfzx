@@ -132,6 +132,13 @@ export interface SkillBaseEntry {
   no: number
   id: string
   name: SkillName
+  /** The enclosing `<SkillType TypeName="...">` group this skill came from
+   * in document order, e.g. "Health and Stamina", "Offense and Adren" —
+   * this *is* the original app's skill-category tree grouping (see
+   * `MHSX2.SkillBaseTreeView.LoadBaseData`'s `SkillCategoryList`/
+   * `SkillCategory` index pair in the decompiled source), not an invented
+   * categorization. */
+  category: string
   skillRank: boolean // present-and-"1" in source XML; modeled as a flag
   options: SkillOption[] // descending point ladder, +max down to negative
 }

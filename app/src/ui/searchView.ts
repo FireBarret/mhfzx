@@ -9,6 +9,7 @@
 import type { EquipData, SkillBaseEntry } from '../data/schema'
 import { appState } from './appState'
 import { runSearch, type FoundSet, type JobFilter, type SearchTarget } from '../search'
+import { deleteSkillSet, getFavorites, getSkillSets, saveSkillSet, toggleFavorite, type SkillSet } from './skillGroups'
 
 interface TargetRow {
   skillName: string
@@ -18,6 +19,8 @@ interface TargetRow {
 let targets: TargetRow[] = []
 let lastResults: FoundSet[] = []
 let selectedIndex: number | null = null
+let expandedGroups = new Set<string>()
+let skillSearchText = ''
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -28,6 +31,138 @@ function skillOptionsHtml(skill: SkillBaseEntry, selected: number): string {
   return positive
     .map((o) => `<option value="${o.point}" ${o.point === selected ? 'selected' : ''}>${escapeHtml(o.name)}</option>`)
     .join('')
+}
+
+// --- Skill tree: Favorites + Skill Sets + real data-driven categories
+// (dat/SkillBase.xml's `<SkillType TypeName>` groups — see schema.ts's
+// SkillBaseEntry.category doc comment). Mirrors the original's
+// SkillBaseTreeView: double-click a skill to add it to the target list,
+// double-click a Skill Set to bulk-add its skills at their saved tiers,
+// click the star to favorite/unfavorite. ---
+
+function addTargetBySkillName(skillName: string, minPoint?: number) {
+  if (targets.some((t) => t.skillName === skillName)) return
+  const skillBase = appState.gameData?.skillBase ?? []
+  const skill = skillBase.find((s) => s.name === skillName)
+  const lowestPositive = skill?.options.filter((o) => o.point > 0).sort((a, b) => a.point - b.point)[0]
+  targets.push({ skillName, minPoint: minPoint ?? lowestPositive?.point ?? 1 })
+}
+
+function matchesSearch(name: string): boolean {
+  if (!skillSearchText) return true
+  return name.toLowerCase().includes(skillSearchText.toLowerCase())
+}
+
+function renderGroupHeader(key: string, label: string, isOpen: boolean): string {
+  return `<div class="skill-group-header" data-key="${escapeHtml(key)}">${isOpen ? '▾' : '▸'} ${escapeHtml(label)}</div>`
+}
+
+function renderSkillLeaf(name: string, isFavorite: boolean): string {
+  return `<div class="skill-leaf" data-skill="${escapeHtml(name)}" title="Double-click to add">
+    <button class="fav-toggle" data-skill="${escapeHtml(name)}" title="${isFavorite ? 'Remove from favorites' : 'Add to favorites'}">${isFavorite ? '★' : '☆'}</button>
+    <span>${escapeHtml(name)}</span>
+  </div>`
+}
+
+function renderSkillSetLeaf(set: SkillSet): string {
+  return `<div class="skill-leaf skillset-leaf" data-set="${escapeHtml(set.name)}" title="Double-click to add all ${set.entries.length} skills">
+    <button class="skillset-delete" data-set="${escapeHtml(set.name)}" title="Delete this set">🗑</button>
+    <span>${escapeHtml(set.name)} <small>(${set.entries.length})</small></span>
+  </div>`
+}
+
+function renderSkillTree(root: HTMLElement) {
+  const treeEl = root.querySelector<HTMLDivElement>('#skill-tree')!
+  const skillBase = appState.gameData?.skillBase ?? []
+  const favorites = getFavorites()
+  const skillSets = getSkillSets()
+
+  const categoryOrder: string[] = []
+  const byCategory = new Map<string, SkillBaseEntry[]>()
+  for (const s of skillBase) {
+    if (!byCategory.has(s.category)) {
+      byCategory.set(s.category, [])
+      categoryOrder.push(s.category)
+    }
+    byCategory.get(s.category)!.push(s)
+  }
+
+  const sections: string[] = []
+
+  const favItems = favorites.filter(matchesSearch)
+  const favKey = '__favorites__'
+  const favOpen = expandedGroups.has(favKey) || (skillSearchText !== '' && favItems.length > 0)
+  sections.push(renderGroupHeader(favKey, `★ Favorites (${favorites.length})`, favOpen))
+  if (favOpen) {
+    sections.push(
+      favItems.length > 0
+        ? favItems.map((name) => renderSkillLeaf(name, true)).join('')
+        : '<div class="skill-leaf-empty">No favorites yet — click ☆ next to any skill.</div>',
+    )
+  }
+
+  const setItems = skillSets.filter((s) => matchesSearch(s.name))
+  const setsKey = '__skillsets__'
+  const setsOpen = expandedGroups.has(setsKey) || (skillSearchText !== '' && setItems.length > 0)
+  sections.push(renderGroupHeader(setsKey, `📁 Skill Sets (${skillSets.length})`, setsOpen))
+  if (setsOpen) {
+    sections.push(
+      setItems.length > 0
+        ? setItems.map(renderSkillSetLeaf).join('')
+        : '<div class="skill-leaf-empty">No saved sets yet — build a target list below, then "Save as Skill Set".</div>',
+    )
+  }
+
+  for (const category of categoryOrder) {
+    const all = byCategory.get(category)!
+    const matching = all.filter((s) => matchesSearch(s.name))
+    if (skillSearchText !== '' && matching.length === 0) continue
+    const key = `cat:${category}`
+    const isOpen = expandedGroups.has(key) || (skillSearchText !== '' && matching.length > 0)
+    sections.push(renderGroupHeader(key, `${category} (${all.length})`, isOpen))
+    if (isOpen) {
+      sections.push(matching.map((s) => renderSkillLeaf(s.name, favorites.includes(s.name))).join(''))
+    }
+  }
+
+  treeEl.innerHTML = sections.join('')
+
+  treeEl.querySelectorAll<HTMLDivElement>('.skill-group-header').forEach((el) => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.key!
+      if (expandedGroups.has(key)) expandedGroups.delete(key)
+      else expandedGroups.add(key)
+      renderSkillTree(root)
+    })
+  })
+  treeEl.querySelectorAll<HTMLDivElement>('.skill-leaf:not(.skillset-leaf)').forEach((el) => {
+    el.addEventListener('dblclick', () => {
+      addTargetBySkillName(el.dataset.skill!)
+      renderTargetTable(root)
+    })
+  })
+  treeEl.querySelectorAll<HTMLButtonElement>('.fav-toggle').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      toggleFavorite(btn.dataset.skill!)
+      renderSkillTree(root)
+    })
+  })
+  treeEl.querySelectorAll<HTMLDivElement>('.skillset-leaf').forEach((el) => {
+    el.addEventListener('dblclick', () => {
+      const set = skillSets.find((s) => s.name === el.dataset.set)
+      if (!set) return
+      for (const entry of set.entries) addTargetBySkillName(entry.skillName, entry.point)
+      renderTargetTable(root)
+    })
+  })
+  treeEl.querySelectorAll<HTMLButtonElement>('.skillset-delete').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      deleteSkillSet(btn.dataset.set!)
+      renderSkillTree(root)
+    })
+  })
 }
 
 // --- Target skill table (mirrors the original's No/Skill/Value/Activated Name grid) ---
@@ -189,15 +324,13 @@ export function renderSearchView(container: HTMLElement) {
 
       <div class="skill-pick-row">
         <fieldset class="skill-pick-fieldset">
-          <legend>Add Skill</legend>
-          <div class="add-skill-row">
-            <select id="add-skill-select"></select>
-            <button id="add-skill-btn">Add</button>
-          </div>
-          <div class="skill-tier-note">Tiers shown are the game's real thresholds for each skill.</div>
+          <legend>Skills</legend>
+          <input id="skill-search" type="text" placeholder="Search skills…">
+          <div id="skill-tree" class="skill-tree"></div>
+          <div class="skill-tier-note">Double-click a skill (or a Skill Set) to add it. Click ☆ to favorite.</div>
         </fieldset>
         <fieldset class="target-table-fieldset">
-          <legend>Target Skills</legend>
+          <legend>Target Skills <button id="save-skillset-btn" class="save-set-btn">Save as Skill Set…</button></legend>
           <div class="table-scroll" style="max-height:140px;">
             <table>
               <thead><tr><th>No.</th><th>Skill</th><th>Value</th><th>Activated Skill</th><th></th></tr></thead>
@@ -247,26 +380,30 @@ export function renderSearchView(container: HTMLElement) {
     </div>
   `
 
-  const addSelect = container.querySelector<HTMLSelectElement>('#add-skill-select')!
-  const addBtn = container.querySelector<HTMLButtonElement>('#add-skill-btn')!
   const runBtn = container.querySelector<HTMLButtonElement>('#run-search-btn')!
   const jobSelect = container.querySelector<HTMLSelectElement>('#job-filter')!
   const maxResultsInput = container.querySelector<HTMLInputElement>('#max-results')!
+  const skillSearchInput = container.querySelector<HTMLInputElement>('#skill-search')!
+  const saveSkillSetBtn = container.querySelector<HTMLButtonElement>('#save-skillset-btn')!
 
-  function populateSkillSelect() {
-    const skillBase = appState.gameData?.skillBase ?? []
-    const sorted = [...skillBase].sort((a, b) => a.name.localeCompare(b.name))
-    addSelect.innerHTML = sorted.map((s) => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('')
-  }
+  skillSearchInput.addEventListener('input', () => {
+    skillSearchText = skillSearchInput.value
+    renderSkillTree(container)
+  })
 
-  addBtn.addEventListener('click', () => {
-    const skillName = addSelect.value
-    if (!skillName || targets.some((t) => t.skillName === skillName)) return
+  saveSkillSetBtn.addEventListener('click', (e) => {
+    e.preventDefault() // it's inside a <legend>; don't let it toggle any ancestor <details>-like behavior
+    if (targets.length === 0) return
+    const name = window.prompt('Name this skill set:')
+    if (!name) return
     const skillBase = appState.gameData?.skillBase ?? []
-    const skill = skillBase.find((s) => s.name === skillName)
-    const lowestPositive = skill?.options.filter((o) => o.point > 0).sort((a, b) => a.point - b.point)[0]
-    targets.push({ skillName, minPoint: lowestPositive?.point ?? 1 })
-    renderTargetTable(container)
+    const entries = targets.map((t) => {
+      const skill = skillBase.find((s) => s.name === t.skillName)
+      const optionName = skill?.options.find((o) => o.point === t.minPoint)?.name ?? t.skillName
+      return { skillName: t.skillName, point: t.minPoint, optionName }
+    })
+    saveSkillSet(name, entries)
+    renderSkillTree(container)
   })
 
   runBtn.addEventListener('click', () => {
@@ -315,10 +452,10 @@ export function renderSearchView(container: HTMLElement) {
   })
 
   appState.onDataLoaded(() => {
-    populateSkillSelect()
+    renderSkillTree(container)
     renderTargetTable(container)
   })
-  populateSkillSelect()
+  renderSkillTree(container)
   renderTargetTable(container)
   renderResultsTable(container)
   renderDetailPanes(container)

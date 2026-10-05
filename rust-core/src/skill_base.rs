@@ -54,6 +54,7 @@ mod tests {
             no: 31,
             id: "0950".into(),
             name: "Health".into(),
+            category: "Health and Stamina".into(),
             skill_rank: false,
             options: vec![
                 SkillOption {

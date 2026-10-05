@@ -635,6 +635,7 @@ mod tests {
             no: 1,
             id: "0001".into(),
             name: "Attack".into(),
+            category: "Offense and Adren".into(),
             skill_rank: false,
             options: vec![
                 SkillOption { name: "Attack +2".into(), point: 20 },
@@ -898,6 +899,7 @@ mod tests {
                 no: 1,
                 id: "0001".into(),
                 name: name.into(),
+                category: "Test".into(),
                 skill_rank: false,
                 options: vec![SkillOption { name: format!("{name} +1"), point: 10 }],
             }

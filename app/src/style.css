@@ -290,8 +290,80 @@ legend {
 }
 
 .skill-pick-fieldset {
-  width: 260px;
-  min-width: 260px;
+  width: 300px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+}
+
+#skill-search {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.skill-tree {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--border-dark);
+  min-height: 0;
+}
+
+.skill-group-header {
+  padding: 3px 6px;
+  font-weight: 600;
+  font-size: 11px;
+  background: var(--panel);
+  border-bottom: 1px solid #ddd;
+  cursor: default;
+  user-select: none;
+}
+
+.skill-group-header:hover {
+  background: #e2dfce;
+}
+
+.skill-leaf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 16px;
+  font-size: 11px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: default;
+}
+
+.skill-leaf:hover {
+  background: #d9e4fa;
+}
+
+.skill-leaf-empty {
+  padding: 4px 16px;
+  font-size: 10px;
+  color: #888;
+  font-style: italic;
+}
+
+.fav-toggle,
+.skillset-delete {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1;
+  color: #c9a227;
+  flex-shrink: 0;
+}
+
+.skillset-delete {
+  color: #c0392b;
+}
+
+.save-set-btn {
+  font-size: 10px;
+  padding: 1px 6px;
+  margin-left: 8px;
 }
 
 .target-table-fieldset {
@@ -299,6 +371,11 @@ legend {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.target-table-fieldset legend {
+  display: flex;
+  align-items: center;
 }
 
 .target-table-fieldset .table-scroll {
