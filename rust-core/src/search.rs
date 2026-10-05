@@ -33,6 +33,41 @@ pub struct SearchInput {
     pub targets: Vec<SearchTarget>,
     pub job: Job,
     pub max_results: usize,
+    /// Restricts armor candidates the *search chooses* to these `EquipData`
+    /// `equip_type` values (see schema.rs's doc comment for the value set) —
+    /// empty means unfiltered. Weapons have no `Type` field in the original
+    /// data, so this never applies to weapon candidates. Mirrors
+    /// `MHSX2.EquipTypeCondition.Evaluate` (decompiled source): exact string
+    /// equality against the piece's own Type, not a substring/fuzzy match.
+    pub allowed_equip_types: Vec<String>,
+    /// User-specified fixed pieces (by exact name) for any subset of the 6
+    /// equip slots, each optionally with its own fixed decorations already
+    /// attached — mirrors the original's `Equipment.GetFixedJewelys()`
+    /// (decompiled `Equipment.cs`): up to 3 decorations pre-placed in a
+    /// piece, consuming part of its slot capacity, with the rest of that
+    /// piece's capacity (if any) and every non-preset slot still filled
+    /// normally by the search. A preset slot bypasses job/equip-type
+    /// filtering entirely -- the caller chose it explicitly.
+    pub presets: SearchPresets,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PiecePreset {
+    pub name: String,
+    #[serde(default)]
+    pub decorations: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchPresets {
+    pub head: Option<PiecePreset>,
+    pub body: Option<PiecePreset>,
+    pub arm: Option<PiecePreset>,
+    pub waist: Option<PiecePreset>,
+    pub leg: Option<PiecePreset>,
+    pub weapon: Option<PiecePreset>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +105,12 @@ fn job_compatible(piece_job: Job, wanted: Job) -> bool {
     piece_job == Job::Both || wanted == Job::Both || piece_job == wanted
 }
 
+/// Empty `allowed` means unfiltered — matches `SearchInput::allowed_equip_types`'s
+/// "empty = no restriction" convention.
+fn type_allowed(piece_type: &str, allowed: &[String]) -> bool {
+    allowed.is_empty() || allowed.iter().any(|t| t == piece_type)
+}
+
 /// The piece's highest (last) level rung — the fully-upgraded stats, used as
 /// this candidate's Def/Slot for search purposes.
 fn best_level(piece: &EquipData) -> &crate::schema::LevelEntry {
@@ -91,8 +132,9 @@ fn relevance(piece: &EquipData, target_names: &[&str]) -> i32 {
 /// relevance (ties broken by defense), plus up to `MAX_FILLER_PER_SLOT`
 /// generic high-defense pieces (so a slot with no relevant piece still gets
 /// good, complete, valid candidates instead of an empty list).
-fn shortlist<'a>(pieces: &'a [EquipData], job: Job, target_names: &[&str]) -> Vec<&'a EquipData> {
-    let compatible: Vec<&EquipData> = pieces.iter().filter(|p| job_compatible(p.job, job)).collect();
+fn shortlist<'a>(pieces: &'a [EquipData], job: Job, target_names: &[&str], allowed_types: &[String]) -> Vec<&'a EquipData> {
+    let compatible: Vec<&EquipData> =
+        pieces.iter().filter(|p| job_compatible(p.job, job) && type_allowed(&p.equip_type, allowed_types)).collect();
 
     let mut by_relevance: Vec<&EquipData> = compatible.iter().copied().filter(|p| relevance(p, target_names) > 0).collect();
     by_relevance.sort_by(|a, b| {
@@ -215,6 +257,20 @@ struct SearchState<'a> {
     max_results: usize,
     nodes_visited: u64,
     results: Vec<FoundSet>,
+    /// Fixed decorations from `SearchInput::presets`, flattened across every
+    /// preset slot (armor and weapon) — always included in every accepted
+    /// result's `decorations`, on top of whatever `fill_decorations` adds
+    /// for the remaining open capacity. Their skill contributions are
+    /// already baked into each weapon pass's starting `running` vector (see
+    /// `search()`), so no further bookkeeping is needed for them here.
+    preset_decorations: Vec<&'a JewelData>,
+    /// Per-armor-slot (head..leg, matching `pieces`'s index order) capacity
+    /// already consumed by that slot's preset decorations, if any — 0 for
+    /// every non-preset slot.
+    armor_reserved_capacity: [u8; 5],
+    /// Same idea as `armor_reserved_capacity`, for the selected weapon's
+    /// preset decorations (0 when the weapon slot has no preset).
+    weapon_reserved_capacity: u8,
     /// How many results this weapon pass may still contribute, and how many
     /// `results` already held when this pass started — together these cap
     /// any single weapon's share of the result set (see `search()`), so
@@ -393,9 +449,18 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
         chosen[3].unwrap(),
         chosen[4].unwrap(),
     ];
-    let mut sockets: Vec<u8> = pieces.iter().map(|p| best_level(p).slot).filter(|&s| s > 0).collect();
+    // Each slot's open capacity is its full slot count minus whatever its
+    // own preset decorations already consumed (0 for non-preset slots) --
+    // see `armor_reserved_capacity`/`weapon_reserved_capacity`'s doc
+    // comments.
+    let mut sockets: Vec<u8> = pieces
+        .iter()
+        .enumerate()
+        .map(|(i, p)| best_level(p).slot.saturating_sub(state.armor_reserved_capacity[i]))
+        .filter(|&s| s > 0)
+        .collect();
     if let Some(weapon) = state.weapon {
-        let weapon_slot = best_weapon_level(weapon).slot;
+        let weapon_slot = best_weapon_level(weapon).slot.saturating_sub(state.weapon_reserved_capacity);
         if weapon_slot > 0 {
             sockets.push(weapon_slot);
         }
@@ -408,7 +473,8 @@ fn try_accept<'a>(state: &mut SearchState<'a>, chosen: &[Option<&'a EquipData>; 
         .filter(|(i, t)| running[*i] < t.min_point)
         .map(|(i, t)| (t.skill_name.clone(), t.min_point - running[i]))
         .collect();
-    let decorations = fill_decorations(state.jewels, &sockets, &deficits);
+    let mut decorations: Vec<&JewelData> = state.preset_decorations.clone();
+    decorations.extend(fill_decorations(state.jewels, &sockets, &deficits));
 
     let loadout = Loadout {
         weapon: state.weapon,
@@ -507,22 +573,106 @@ fn weapon_deltas(weapon: Option<&WeaponData>, targets: &[SearchTarget]) -> Vec<i
         .collect()
 }
 
-pub fn search(data: &GameData, input: &SearchInput) -> Vec<FoundSet> {
+/// Resolves one armor-slot preset (by exact piece name, with 0-3 named
+/// decorations already attached) against the loaded data. `Err` on any name
+/// that doesn't resolve, or decorations whose combined slot size exceeds
+/// the piece's own capacity — a caller mistake, not a search outcome, so
+/// this fails loudly rather than silently dropping the preset.
+fn resolve_armor_preset<'a>(
+    preset: &Option<PiecePreset>,
+    pool: &'a [EquipData],
+    jewels: &'a [JewelData],
+) -> Result<Option<(&'a EquipData, Vec<&'a JewelData>)>, String> {
+    let Some(p) = preset else { return Ok(None) };
+    let piece = pool.iter().find(|e| e.name == p.name).ok_or_else(|| format!("preset piece not found: {}", p.name))?;
+    let decorations = resolve_preset_decorations(&p.decorations, jewels, best_level(piece).slot, &p.name)?;
+    Ok(Some((piece, decorations)))
+}
+
+/// Same as `resolve_armor_preset`, for the weapon slot (its own distinct
+/// data type/level accessor).
+fn resolve_weapon_preset<'a>(
+    preset: &Option<PiecePreset>,
+    pool: &'a [WeaponData],
+    jewels: &'a [JewelData],
+) -> Result<Option<(&'a WeaponData, Vec<&'a JewelData>)>, String> {
+    let Some(p) = preset else { return Ok(None) };
+    let weapon = pool.iter().find(|w| w.name == p.name).ok_or_else(|| format!("preset weapon not found: {}", p.name))?;
+    let decorations = resolve_preset_decorations(&p.decorations, jewels, best_weapon_level(weapon).slot, &p.name)?;
+    Ok(Some((weapon, decorations)))
+}
+
+fn resolve_preset_decorations<'a>(
+    names: &[String],
+    jewels: &'a [JewelData],
+    capacity: u8,
+    piece_name: &str,
+) -> Result<Vec<&'a JewelData>, String> {
+    let mut decorations = Vec::with_capacity(names.len());
+    let mut used: u16 = 0;
+    for name in names {
+        let jewel = jewels.iter().find(|j| &j.name == name).ok_or_else(|| format!("preset decoration not found: {name}"))?;
+        used += jewel.slot as u16;
+        decorations.push(jewel);
+    }
+    if used > capacity as u16 {
+        return Err(format!(
+            "preset decorations for \"{piece_name}\" need {used} slot capacity but it only has {capacity}"
+        ));
+    }
+    Ok(decorations)
+}
+
+/// Builds one armor slot's `SlotCandidates` plus how much of that piece's
+/// own capacity its preset decorations (if any) already consumed. A preset
+/// slot always has exactly one candidate (the chosen piece) and bypasses
+/// job/equip-type filtering entirely — the caller picked it explicitly.
+fn build_armor_slot<'a>(
+    preset: &Option<(&'a EquipData, Vec<&'a JewelData>)>,
+    pool: &'a [EquipData],
+    job: Job,
+    target_names: &[&str],
+    allowed_types: &[String],
+    targets: &[SearchTarget],
+) -> (SlotCandidates<'a>, u8) {
+    match preset {
+        Some((piece, decorations)) => {
+            let reserved: u8 = decorations.iter().map(|j| j.slot).sum();
+            let pieces = vec![*piece];
+            let max_contribution = max_contribution_per_target(&pieces, targets);
+            (SlotCandidates { pieces, max_contribution }, reserved)
+        }
+        None => {
+            let pieces = shortlist(pool, job, target_names, allowed_types);
+            let max_contribution = max_contribution_per_target(&pieces, targets);
+            (SlotCandidates { pieces, max_contribution }, 0)
+        }
+    }
+}
+
+pub fn search(data: &GameData, input: &SearchInput) -> Result<Vec<FoundSet>, String> {
     let target_names: Vec<&str> = input.targets.iter().map(|t| t.skill_name.as_str()).collect();
 
-    let head = shortlist(&data.head, input.job, &target_names);
-    let body = shortlist(&data.body, input.job, &target_names);
-    let arm = shortlist(&data.arm, input.job, &target_names);
-    let waist = shortlist(&data.waist, input.job, &target_names);
-    let leg = shortlist(&data.leg, input.job, &target_names);
+    let head_preset = resolve_armor_preset(&input.presets.head, &data.head, &data.jewels)?;
+    let body_preset = resolve_armor_preset(&input.presets.body, &data.body, &data.jewels)?;
+    let arm_preset = resolve_armor_preset(&input.presets.arm, &data.arm, &data.jewels)?;
+    let waist_preset = resolve_armor_preset(&input.presets.waist, &data.waist, &data.jewels)?;
+    let leg_preset = resolve_armor_preset(&input.presets.leg, &data.leg, &data.jewels)?;
+    let weapon_preset = resolve_weapon_preset(&input.presets.weapon, &data.weapons, &data.jewels)?;
 
-    let slots: [SlotCandidates; 5] = [
-        SlotCandidates { max_contribution: max_contribution_per_target(&head, &input.targets), pieces: head },
-        SlotCandidates { max_contribution: max_contribution_per_target(&body, &input.targets), pieces: body },
-        SlotCandidates { max_contribution: max_contribution_per_target(&arm, &input.targets), pieces: arm },
-        SlotCandidates { max_contribution: max_contribution_per_target(&waist, &input.targets), pieces: waist },
-        SlotCandidates { max_contribution: max_contribution_per_target(&leg, &input.targets), pieces: leg },
-    ];
+    let (head_slot, head_reserved) =
+        build_armor_slot(&head_preset, &data.head, input.job, &target_names, &input.allowed_equip_types, &input.targets);
+    let (body_slot, body_reserved) =
+        build_armor_slot(&body_preset, &data.body, input.job, &target_names, &input.allowed_equip_types, &input.targets);
+    let (arm_slot, arm_reserved) =
+        build_armor_slot(&arm_preset, &data.arm, input.job, &target_names, &input.allowed_equip_types, &input.targets);
+    let (waist_slot, waist_reserved) =
+        build_armor_slot(&waist_preset, &data.waist, input.job, &target_names, &input.allowed_equip_types, &input.targets);
+    let (leg_slot, leg_reserved) =
+        build_armor_slot(&leg_preset, &data.leg, input.job, &target_names, &input.allowed_equip_types, &input.targets);
+
+    let slots: [SlotCandidates; 5] = [head_slot, body_slot, arm_slot, waist_slot, leg_slot];
+    let armor_reserved_capacity = [head_reserved, body_reserved, arm_reserved, waist_reserved, leg_reserved];
 
     let skill_base: HashMap<String, &crate::schema::SkillBaseEntry> =
         data.skill_base.iter().map(|s| (s.name.clone(), s)).collect();
@@ -533,11 +683,36 @@ pub fn search(data: &GameData, input: &SearchInput) -> Vec<FoundSet> {
     // just armor — see docs/rules-spec.md §1's "6 equip slots" scope, and
     // weapons commonly carry slots in real play). Try each shortlisted
     // weapon in turn; `None` only if the loaded data has no weapons at all.
-    let weapon_candidates: Vec<Option<&WeaponData>> = if data.weapons.is_empty() {
-        vec![None]
-    } else {
-        shortlist_weapons(&data.weapons, input.job, &target_names).into_iter().map(Some).collect()
+    // A preset weapon short-circuits all of that to the one chosen weapon.
+    let (weapon_candidates, weapon_reserved_capacity): (Vec<Option<&WeaponData>>, u8) = match &weapon_preset {
+        Some((weapon, decorations)) => (vec![Some(*weapon)], decorations.iter().map(|j| j.slot).sum()),
+        None if data.weapons.is_empty() => (vec![None], 0),
+        None => (shortlist_weapons(&data.weapons, input.job, &target_names).into_iter().map(Some).collect(), 0),
     };
+
+    let mut preset_decorations: Vec<&JewelData> = Vec::new();
+    for preset in [&head_preset, &body_preset, &arm_preset, &waist_preset, &leg_preset] {
+        if let Some((_, decorations)) = preset {
+            preset_decorations.extend(decorations.iter().copied());
+        }
+    }
+    if let Some((_, decorations)) = &weapon_preset {
+        preset_decorations.extend(decorations.iter().copied());
+    }
+    // Preset decorations' skill contributions are a fixed baseline on top of
+    // whichever weapon is tried — folded into `running` below, once per
+    // weapon pass, the same way a selected weapon's own skills are.
+    let preset_deltas: Vec<i32> = input
+        .targets
+        .iter()
+        .map(|t| {
+            preset_decorations
+                .iter()
+                .filter_map(|j| j.skills.iter().find(|s| s.skill_name == t.skill_name))
+                .map(|s| s.point)
+                .sum()
+        })
+        .collect();
 
     let mut state = SearchState {
         slots,
@@ -552,6 +727,9 @@ pub fn search(data: &GameData, input: &SearchInput) -> Vec<FoundSet> {
         results: Vec::new(),
         per_weapon_cap: input.max_results,
         weapon_pass_start_count: 0,
+        preset_decorations,
+        armor_reserved_capacity,
+        weapon_reserved_capacity,
     };
 
     let weapon_count = weapon_candidates.len();
@@ -571,9 +749,12 @@ pub fn search(data: &GameData, input: &SearchInput) -> Vec<FoundSet> {
         state.per_weapon_cap = remaining_budget.div_ceil(remaining_weapons).max(1);
         let mut chosen: [Option<&EquipData>; 5] = [None; 5];
         let mut running = weapon_deltas(weapon, &input.targets);
+        for (j, d) in preset_deltas.iter().enumerate() {
+            running[j] += d;
+        }
         recurse(&mut state, 0, &mut chosen, &mut running);
     }
-    state.results
+    Ok(state.results)
 }
 
 #[cfg(test)]
@@ -675,8 +856,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
             job: Job::Both,
             max_results: 10,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert!(!results.is_empty(), "expected at least one valid Attack+10 set");
         for r in &results {
             let attack = r.active_skills.iter().find(|s| s.skill_name == "Attack").expect("Attack must be active");
@@ -693,8 +876,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
             job: Job::Both,
             max_results: 1,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert_eq!(results.len(), 1);
     }
 
@@ -706,8 +891,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 999 }],
             job: Job::Both,
             max_results: 10,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert!(results.is_empty());
     }
 
@@ -721,8 +908,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
             job: Job::Both,
             max_results: 10,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert!(!results.is_empty());
 
         fn find<'a>(slot: &'a [EquipData], name: &str) -> &'a EquipData {
@@ -776,8 +965,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 20 }],
             job: Job::Both,
             max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert!(!results.is_empty(), "expected the 3-capacity piece to host three 1-slot jewels");
         let best = &results[0];
         assert_eq!(best.decorations.len(), 3);
@@ -826,8 +1017,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
             job: Job::Both,
             max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert!(!results.is_empty(), "expected the weapon's own skill + slot to be usable");
         assert_eq!(results[0].weapon.as_deref(), Some("Attack Sword"));
         assert_eq!(results[0].decorations, vec!["Attack 2-Slot".to_string()]);
@@ -878,8 +1071,10 @@ mod tests {
             targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
             job: Job::Both,
             max_results: 4,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         let distinct_weapons: std::collections::HashSet<_> = results.iter().filter_map(|r| r.weapon.as_deref()).collect();
         assert!(
             distinct_weapons.len() > 1,
@@ -929,11 +1124,189 @@ mod tests {
             ],
             job: Job::Both,
             max_results: 1,
+            allowed_equip_types: vec![],
+            presets: SearchPresets::default(),
         };
-        let results = search(&data, &input);
+        let results = search(&data, &input).unwrap();
         assert_eq!(results.len(), 1);
         let names: Vec<&str> = results[0].active_skills.iter().map(|s| s.skill_name.as_str()).collect();
         assert_eq!(&names[0..2], &["Health", "Attack"], "targets must come first, in request order: {names:?}");
         assert!(names.contains(&"Stealth"), "the incidental bonus skill should still be listed: {names:?}");
+    }
+
+    /// A preset armor piece must be used in every result (the search never
+    /// substitutes a different head piece), and its preset decoration must
+    /// consume that piece's own capacity -- a 3-capacity preset piece with
+    /// one 2-slot decoration already fitted has only 1 capacity left, so
+    /// only a 1-slot filler can be added on top of it.
+    #[test]
+    fn preset_armor_piece_is_locked_and_its_decoration_consumes_capacity() {
+        let preset_head = armor("Preset Head", 50, 3, vec![]);
+        let other_head = armor("Other Head", 999, 3, vec![]); // higher defense, must NOT be chosen
+        let plain = armor("Plain", 50, 0, vec![]);
+        let data = GameData {
+            head: vec![preset_head, other_head],
+            body: vec![plain.clone()],
+            arm: vec![plain.clone()],
+            waist: vec![plain.clone()],
+            leg: vec![plain],
+            weapons: vec![],
+            jewels: vec![jewel("Attack 2-Slot", 2, vec![("Attack", 10)]), jewel("Attack 1-Slot", 1, vec![("Attack", 5)])],
+            skill_cuffs: vec![],
+            skill_base: vec![attack_skill_base()],
+            teni_skill_base: vec![],
+            ability_types: labels(),
+        };
+        let input = SearchInput {
+            // 10 (preset 2-slot) + 5 (auto-filled 1-slot) = 15, enough for
+            // the "Attack +1" tier (10pts) but only reachable this way since
+            // no piece grants Attack directly.
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                head: Some(PiecePreset { name: "Preset Head".into(), decorations: vec!["Attack 2-Slot".into()] }),
+                ..Default::default()
+            },
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty(), "expected the preset head + one more 1-slot jewel to reach Attack+10");
+        for r in &results {
+            assert_eq!(r.head, "Preset Head", "the preset piece must be used, not substituted");
+            assert!(r.decorations.contains(&"Attack 2-Slot".to_string()), "the preset decoration must appear in the result");
+            let two_slot_count = r.decorations.iter().filter(|d| *d == "Attack 2-Slot").count();
+            assert_eq!(two_slot_count, 1, "the preset decoration must not be duplicated");
+            // Only 1 capacity remains after the preset 2-slot decoration, so
+            // no second 2-slot jewel can be auto-added.
+            assert!(
+                r.decorations.iter().filter(|d| *d == "Attack 1-Slot").count() <= 1,
+                "only a 1-slot filler fits in the remaining capacity: {:?}",
+                r.decorations
+            );
+        }
+    }
+
+    /// Same idea as the armor preset test, for the weapon slot: a preset
+    /// weapon must be used in every result instead of the search choosing
+    /// among candidates.
+    #[test]
+    fn preset_weapon_is_locked_across_all_results() {
+        let plain = armor("Plain", 50, 0, vec![]);
+        let weapon = |name: &str, atk: i32| WeaponData {
+            name: name.into(),
+            job: Job::Both,
+            sex: Sex::Both,
+            rare: 5,
+            elemental: Elemental { fire: 0, water: 0, thunder: 0, ice: 0, dragon: 0 },
+            levels: vec![LevelEntry {
+                level: 1,
+                def: None,
+                atk: Some(atk),
+                slot: 0,
+                cost: Cost { money: 0, cost_type: Some(CostType::Create), items: vec![] },
+            }],
+            abilities: vec![],
+            skills: vec![SkillContribution { skill_name: "Attack".into(), point: 10 }],
+        };
+        let data = GameData {
+            head: vec![plain.clone()],
+            body: vec![plain.clone()],
+            arm: vec![plain.clone()],
+            waist: vec![plain.clone()],
+            leg: vec![plain],
+            weapons: vec![weapon("Preset Sword", 50), weapon("Other Sword", 999)],
+            jewels: vec![],
+            skill_cuffs: vec![],
+            skill_base: vec![attack_skill_base()],
+            teni_skill_base: vec![],
+            ability_types: labels(),
+        };
+        let input = SearchInput {
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets { weapon: Some(PiecePreset { name: "Preset Sword".into(), decorations: vec![] }), ..Default::default() },
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty());
+        for r in &results {
+            assert_eq!(r.weapon.as_deref(), Some("Preset Sword"));
+        }
+    }
+
+    #[test]
+    fn preset_decorations_exceeding_piece_capacity_return_an_error() {
+        let data = two_skill_test_data();
+        let input = SearchInput {
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets {
+                // "Head Geared" (from two_skill_test_data) has 1 capacity;
+                // two 1-slot jewels need 2.
+                head: Some(PiecePreset {
+                    name: "Head Geared".into(),
+                    decorations: vec!["Attack Jewel".into(), "Attack Jewel".into()],
+                }),
+                ..Default::default()
+            },
+        };
+        let err = search(&data, &input).expect_err("decorations exceeding the piece's own capacity must be rejected");
+        assert!(err.contains("Head Geared"), "error should name the offending piece: {err}");
+    }
+
+    #[test]
+    fn unknown_preset_piece_name_returns_an_error() {
+        let data = two_skill_test_data();
+        let input = SearchInput {
+            targets: vec![SearchTarget { skill_name: "Attack".into(), min_point: 10 }],
+            job: Job::Both,
+            max_results: 5,
+            allowed_equip_types: vec![],
+            presets: SearchPresets { head: Some(PiecePreset { name: "Nonexistent Head".into(), decorations: vec![] }), ..Default::default() },
+        };
+        let err = search(&data, &input).expect_err("an unknown preset piece name must be rejected");
+        assert!(err.contains("Nonexistent Head"));
+    }
+
+    /// `allowed_equip_types` must restrict which armor pieces the search is
+    /// free to choose for non-preset slots -- a high-defense piece of a
+    /// disallowed type must never appear even though it would otherwise win
+    /// on relevance/defense.
+    #[test]
+    fn equip_type_filter_restricts_armor_candidates_the_search_chooses() {
+        let mut allowed_type_piece = armor("Allowed Type Head", 50, 0, vec![]);
+        allowed_type_piece.equip_type = "G Rank Armour".into();
+        let mut disallowed_type_piece = armor("Disallowed Type Head", 999, 0, vec![]);
+        disallowed_type_piece.equip_type = "Zenith".into();
+        let plain = armor("Plain", 50, 0, vec![]);
+        let data = GameData {
+            head: vec![allowed_type_piece, disallowed_type_piece],
+            body: vec![plain.clone()],
+            arm: vec![plain.clone()],
+            waist: vec![plain.clone()],
+            leg: vec![plain],
+            weapons: vec![],
+            jewels: vec![],
+            skill_cuffs: vec![],
+            skill_base: vec![attack_skill_base()],
+            teni_skill_base: vec![],
+            ability_types: labels(),
+        };
+        let input = SearchInput {
+            targets: vec![],
+            job: Job::Both,
+            max_results: 10,
+            allowed_equip_types: vec!["G Rank Armour".into()],
+            presets: SearchPresets::default(),
+        };
+        let results = search(&data, &input).unwrap();
+        assert!(!results.is_empty());
+        for r in &results {
+            assert_eq!(r.head, "Allowed Type Head", "a disallowed-type piece must never be chosen: {:?}", r.head);
+        }
     }
 }

@@ -1,9 +1,11 @@
 // Dev-only tool: regenerates rust-core/fixtures/real_game_data.json (used by
 // rust-core/tests/real_data_search.rs, gitignored — see that file) from the
-// real dat/+conf/ files. Run explicitly:
-//   npx vitest run scripts/dumpFixture.manual.ts
-// Named *.manual.ts (not *.test.ts) so the default `npx vitest run` (no
-// path) doesn't pick it up — it writes a 14MB file and reads from a fixed
+// real dat/+conf/ files. Vitest's default include glob only matches
+// *.test.ts/*.spec.ts, so run it by temporarily copying to a matching name:
+//   cp scripts/dumpFixture.manual.ts scripts/_tmpDumpFixture.test.ts && \
+//     npx vitest run scripts/_tmpDumpFixture.test.ts; rm scripts/_tmpDumpFixture.test.ts
+// Named *.manual.ts (not *.test.ts) so it's never picked up by a plain
+// `npx vitest run` (no path) — it writes a 14MB file and reads from a fixed
 // local path outside the repo, which isn't appropriate for the normal suite.
 // vitest's bundler-style module resolution handles the extensionless
 // relative imports in src/data/ that plain `node` can't.

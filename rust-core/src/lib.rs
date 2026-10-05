@@ -30,6 +30,15 @@ pub struct SearchRequest {
     /// One of `"Both"`, `"Blademaster"`, `"Gunner"`.
     pub job: String,
     pub max_results: usize,
+    /// `EquipData.equipType` values the search may choose for non-preset
+    /// armor slots — empty/omitted means unfiltered. See
+    /// `search::SearchInput::allowed_equip_types`.
+    #[serde(default)]
+    pub equip_types: Vec<String>,
+    /// Fixed pieces (and their fixed decorations) for any subset of the 6
+    /// equip slots. See `search::SearchPresets`.
+    #[serde(default)]
+    pub presets: search::SearchPresets,
 }
 
 fn parse_job(job: &str) -> Result<schema::Job, JsValue> {
@@ -55,7 +64,9 @@ pub fn search_wasm(game_data: JsValue, request: JsValue) -> Result<JsValue, JsVa
         targets: request.targets,
         job: parse_job(&request.job)?,
         max_results: request.max_results,
+        allowed_equip_types: request.equip_types,
+        presets: request.presets,
     };
-    let results = search::search(&data, &input);
+    let results = search::search(&data, &input).map_err(|e| JsValue::from_str(&e))?;
     serde_wasm_bindgen::to_value(&results).map_err(|e| JsValue::from_str(&format!("failed to serialize results: {e}")))
 }

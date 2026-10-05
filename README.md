@@ -76,7 +76,8 @@ only show up in a real browser (file-serving permissions, WASM init timing,
 etc.) that `vitest`'s jsdom-based tests can't. Run with:
 
 ```sh
-cd app && node scripts/diagnose.mjs   # with the dev server already running
+cd app && node scripts/diagnose.mjs            # folder loading, skill tree, search, results grid
+cd app && node scripts/diagnose-newfeatures.mjs # equip presets, armor-type filter, item tags
 ```
 
 ## Status
@@ -84,7 +85,18 @@ cd app && node scripts/diagnose.mjs   # with the dev server already running
 Working end-to-end: folder loading (manual or auto via default-data), the
 skill category tree (real categories from `dat/SkillBase.xml`, Favorites,
 and saved Skill Sets), the Rust/WASM search engine, a results grid with
-master-detail drill-down, and a data browser. `setting.xml`/`tag/*.xml`/
-`allows.xml`/`ignore.xml` round-trip import/export exists in the data layer
-(`app/src/data/`) but isn't wired into any UI yet. See the plan file for the
-full phase breakdown and what's still deferred.
+master-detail drill-down, and a data browser.
+
+Also working: **preset equipment** (fix a specific piece — and up to 3 of
+its own decorations — for any of the 6 equip slots; the search fills the
+rest), an **armor-type filter** (Exotic/G Rank Armour/GS Armour/Origin/
+Tower/Zenith/Zenith (ZP), built from whatever's actually loaded), and
+**item tags** ("already have" tags on any armor/weapon/jewel/skill-cuff row
+in the Data Browser, with a "only use items tagged…" filter on the Search
+tab). All three are localStorage-backed like Favorites/Skill Sets.
+
+`setting.xml`/`tag/*.xml`/`allows.xml`/`ignore.xml` round-trip import/export
+exists in the data layer (`app/src/data/`) but isn't wired into any UI yet
+(the item-tags feature above is a separate, simpler localStorage-backed
+tagging system, not that round-trip layer). See the plan file for the full
+phase breakdown and what's still deferred.

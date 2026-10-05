@@ -257,7 +257,7 @@ legend {
 
 /* --- Search tab: vertical stack of panes, mirroring the original's
    search-conditions / skill-list / fixed-equipment / results / detail
-   arrangement (minus the fixed-equipment locking panel, deferred). --- */
+   arrangement. --- */
 .mhfz-layout {
   display: flex;
   flex-direction: column;
@@ -282,6 +282,35 @@ legend {
 
 #max-results {
   width: 60px;
+}
+
+.equip-type-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.equip-type-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.presets-fieldset td input[type='text'] {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 11px;
+}
+
+.preset-clear-btn {
+  cursor: pointer;
+}
+
+.tags-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 11px;
 }
 
 .skill-pick-row {

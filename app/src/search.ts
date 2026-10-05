@@ -15,10 +15,34 @@ export interface SearchTarget {
 
 export type JobFilter = 'Both' | 'Blademaster' | 'Gunner'
 
+/** A fixed piece for one equip slot, with 0-3 of its own decorations
+ * already attached (by exact name) -- mirrors the original's
+ * `Equipment.GetFixedJewelys()`: the search never substitutes this piece
+ * and treats its preset decorations as already placed, filling only the
+ * capacity (if any) left over. */
+export interface PiecePreset {
+  name: string
+  decorations: string[]
+}
+
+export interface SearchPresets {
+  head?: PiecePreset
+  body?: PiecePreset
+  arm?: PiecePreset
+  waist?: PiecePreset
+  leg?: PiecePreset
+  weapon?: PiecePreset
+}
+
 export interface SearchRequest {
   targets: SearchTarget[]
   job: JobFilter
   maxResults: number
+  /** `EquipData.equipType` values the search may choose for non-preset
+   * armor slots -- empty/omitted means unfiltered. Never restricts a preset
+   * slot (the caller already chose that piece explicitly). */
+  equipTypes?: string[]
+  presets?: SearchPresets
 }
 
 export interface FoundSkill {

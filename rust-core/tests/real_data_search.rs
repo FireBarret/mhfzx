@@ -14,7 +14,7 @@ use std::fs;
 #[ignore]
 fn finds_valid_sets_for_a_real_two_skill_target() {
     let json = fs::read_to_string("fixtures/real_game_data.json")
-        .expect("run `npx vitest run scripts/_dumpFixture.test.ts` in app/ first");
+        .expect("run app/scripts/dumpFixture.manual.ts first (see its own header comment)");
     let data: GameData = serde_json::from_str(&json).expect("fixture should deserialize as GameData");
 
     eprintln!(
@@ -32,10 +32,12 @@ fn finds_valid_sets_for_a_real_two_skill_target() {
         ],
         job: Job::Both,
         max_results: 5,
+        allowed_equip_types: vec![],
+        presets: Default::default(),
     };
 
     let start = std::time::Instant::now();
-    let results = search(&data, &input);
+    let results = search(&data, &input).expect("search should succeed with no presets");
     eprintln!("search took {:?}, found {} sets", start.elapsed(), results.len());
 
     assert!(!results.is_empty(), "expected at least one valid set for Attack+Health on real data");

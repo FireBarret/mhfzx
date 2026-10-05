@@ -3,12 +3,22 @@
 
 import type { EquipData, JewelData, SkillCuffData, WeaponData } from '../data/schema'
 import { appState } from './appState'
+import { getTagNamesForItem, setTagsForItem } from './itemTags'
 
 type Category = 'Head' | 'Body' | 'Arm' | 'Waist' | 'Leg' | 'Weapon' | 'Jewel' | 'SkillCuff'
 const CATEGORIES: Category[] = ['Head', 'Body', 'Arm', 'Waist', 'Leg', 'Weapon', 'Jewel', 'SkillCuff']
 
 let activeCategory: Category = 'Head'
 let filterText = ''
+
+/** The "already have" tags column, appended to every category's row —
+ * a text input showing this item's current tags (comma-separated),
+ * committed on blur/Enter via setTagsForItem. Shared across all four row
+ * builders below rather than duplicated per category. */
+function tagsCellHtml(itemName: string): string {
+  const current = getTagNamesForItem(itemName).join(', ')
+  return `<td><input type="text" class="tags-input" data-item="${escapeHtml(itemName)}" value="${escapeHtml(current)}" placeholder="untagged"></td>`
+}
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -33,6 +43,7 @@ function equipRows(items: EquipData[], filter: string): string {
         <td>${best?.def ?? '—'}</td>
         <td>${best?.slot ?? 0}</td>
         <td>${escapeHtml(skillsText(d.skills))}</td>
+        ${tagsCellHtml(d.name)}
       </tr>`
     })
     .join('')
@@ -52,6 +63,7 @@ function weaponRows(items: WeaponData[], filter: string): string {
         <td>${best?.atk ?? '—'}</td>
         <td>${best?.slot ?? 0}</td>
         <td>${escapeHtml(skillsText(d.skills))}</td>
+        ${tagsCellHtml(d.name)}
       </tr>`
     })
     .join('')
@@ -70,6 +82,7 @@ function jewelRows(items: JewelData[], filter: string): string {
         <td>${d.slot}</td>
         <td>${escapeHtml(skillsText(d.skills))}</td>
         <td>${d.sources.length > 0 ? escapeHtml(d.sources.map((s) => s.equipName).join(', ')) : '—'}</td>
+        ${tagsCellHtml(d.name)}
       </tr>`,
     )
     .join('')
@@ -87,15 +100,16 @@ function skillCuffRows(items: SkillCuffData[], filter: string): string {
         <td>${d.rare}</td>
         <td>${d.slot}</td>
         <td>${escapeHtml(skillsText(d.skills))}</td>
+        ${tagsCellHtml(d.name)}
       </tr>`,
     )
     .join('')
 }
 
-const EQUIP_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Sex</th><th>Rare</th><th>Def</th><th>Slot</th><th>Skills</th>'
-const WEAPON_HEADER = '<th>Name</th><th>Job</th><th>Sex</th><th>Rare</th><th>Atk</th><th>Slot</th><th>Skills</th>'
-const JEWEL_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Rare</th><th>Slot</th><th>Skills</th><th>Sources</th>'
-const CUFF_HEADER = '<th>Name</th><th>Family</th><th>Class</th><th>Rare</th><th>Slot</th><th>Skills</th>'
+const EQUIP_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Sex</th><th>Rare</th><th>Def</th><th>Slot</th><th>Skills</th><th>Tags</th>'
+const WEAPON_HEADER = '<th>Name</th><th>Job</th><th>Sex</th><th>Rare</th><th>Atk</th><th>Slot</th><th>Skills</th><th>Tags</th>'
+const JEWEL_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Rare</th><th>Slot</th><th>Skills</th><th>Sources</th><th>Tags</th>'
+const CUFF_HEADER = '<th>Name</th><th>Family</th><th>Class</th><th>Rare</th><th>Slot</th><th>Skills</th><th>Tags</th>'
 
 function headerFor(cat: Category): string {
   if (cat === 'Weapon') return WEAPON_HEADER
@@ -167,6 +181,13 @@ export function renderDataBrowserView(container: HTMLElement) {
       btn.classList.toggle('active', btn.dataset.cat === activeCategory)
       const countEl = btn.querySelector<HTMLSpanElement>('span')!
       countEl.textContent = String(countFor(btn.dataset.cat as Category))
+    })
+    container.querySelectorAll<HTMLInputElement>('.tags-input').forEach((input) => {
+      const commit = () => setTagsForItem(input.dataset.item!, input.value.split(','))
+      input.addEventListener('change', commit)
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur()
+      })
     })
   }
 

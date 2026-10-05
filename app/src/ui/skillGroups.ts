@@ -157,14 +157,18 @@ export function deleteSkillSet(name: string): SkillSet[] {
 }
 
 /** The in-progress (not necessarily saved-as-a-Skill-Set) search state:
- * current target list, job filter, and max-results, so closing and
- * reopening the browser picks up right where you left off rather than
- * starting from a blank search every time. Distinct from Skill Sets, which
- * are deliberately-named, permanent saves. */
+ * current target list, job filter, max-results, equip-type filter, preset
+ * equipment, and the "already have" tag filter, so closing and reopening
+ * the browser picks up right where you left off rather than starting from
+ * a blank search every time. Distinct from Skill Sets, which are
+ * deliberately-named, permanent saves. */
 export interface SearchSessionState {
   targets: { skillName: string; minPoint: number }[]
   job: string
   maxResults: number
+  equipTypes?: string[]
+  presets?: Partial<Record<'head' | 'body' | 'arm' | 'waist' | 'leg' | 'weapon', { name: string; decorations: string[] }>>
+  tagFilter?: string
 }
 
 export function getSearchSessionState(): SearchSessionState | null {
@@ -177,24 +181,50 @@ export function saveSearchSessionState(state: SearchSessionState): void {
 
 /** Seeds the six Skill Sets bundled with the original app's own setting.xml
  * into localStorage, once per browser (guarded by DEFAULTS_SEEDED_KEY so it
- * never overwrites sets the user has since renamed or deleted). Each skill
- * name is resolved against the loaded skillBase to its lowest positive
- * tier, matching searchView's addTargetBySkillName default. Skill names not
- * found in the loaded data (e.g. a different package.xml revision) are
- * skipped rather than failing the whole set. */
+ * never overwrites sets the user has since renamed or deleted).
+ *
+ * The original format stores each entry as a bare string that's sometimes
+ * the skill's own (base) name and sometimes one of its tier/Option names
+ * (e.g. "Furious" is a skill name; "Strong Attack +6" and "Sword God +2"
+ * are Option names under other skills) -- there's no separate point field.
+ * Resolved by checking every skill's Option names first (an exact tier,
+ * used as-is), falling back to a direct skill-name match at its lowest
+ * positive tier. A name matching neither is skipped, not fatal to the rest
+ * of the set.
+ *
+ * No-ops (without setting the seeded flag) when skillBase is empty --
+ * appState fires its "data loaded" listeners once for setWasmReady() alone,
+ * before any game data exists, so a naive first-call-wins guard would mark
+ * this seeded forever without ever actually seeding anything. */
 export function maybeSeedDefaultSkillSets(skillBase: SkillBaseEntry[]): void {
+  if (skillBase.length === 0) return
   try {
     if (localStorage.getItem(DEFAULTS_SEEDED_KEY)) return
   } catch {
     return
   }
+
+  const byOptionName = new Map<string, { skillName: string; point: number; optionName: string }>()
+  for (const skill of skillBase) {
+    for (const option of skill.options) {
+      if (!byOptionName.has(option.name)) {
+        byOptionName.set(option.name, { skillName: skill.name, point: option.point, optionName: option.name })
+      }
+    }
+  }
+
   for (const { name, skillNames } of DEFAULT_SKILL_SETS) {
     const entries: SkillSetEntry[] = []
-    for (const skillName of skillNames) {
-      const skill = skillBase.find((s) => s.name === skillName)
+    for (const rawName of skillNames) {
+      const viaOption = byOptionName.get(rawName)
+      if (viaOption) {
+        entries.push(viaOption)
+        continue
+      }
+      const skill = skillBase.find((s) => s.name === rawName)
       const lowestPositive = skill?.options.filter((o) => o.point > 0).sort((a, b) => a.point - b.point)[0]
       if (!lowestPositive) continue
-      entries.push({ skillName, point: lowestPositive.point, optionName: lowestPositive.name })
+      entries.push({ skillName: rawName, point: lowestPositive.point, optionName: lowestPositive.name })
     }
     if (entries.length > 0) saveSkillSet(name, entries)
   }
