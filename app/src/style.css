@@ -262,7 +262,8 @@ legend {
   display: flex;
   flex-direction: column;
   width: 100%;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 6px;
   gap: 0;
 }
