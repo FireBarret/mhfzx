@@ -50,6 +50,14 @@ describe('assembleGameData against the real dat/ + conf/ files', () => {
     expect(hidenCuffs.every((c) => c.slot === 0)).toBe(true)
   })
 
+  it('resolves Skill Slots Up / Zenith ability rungs to their point values from TeniSkillBase', () => {
+    const piece = gameData.head.find((p) => p.abilities.some((a) => a.typeName === 'Skill Slots Up'))
+    expect(piece).toBeDefined()
+    const ability = piece!.abilities.find((a) => a.typeName === 'Skill Slots Up')!
+    expect(ability.name).toBe('Skill Slots Up+1')
+    expect(ability.tag).toEqual({ name: 'Skill Slots Up+1', point: 1 })
+  })
+
   it('derives ClothesData.sRestricted from the Type attribute', () => {
     const sClothes = gameData.clothes.find((c) => c.name === 'Clothes S Slot 2')
     const pClothes = gameData.clothes.find((c) => c.name === 'Clothes P Slot 2')

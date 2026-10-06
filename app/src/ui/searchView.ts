@@ -22,6 +22,7 @@ import {
 } from './skillGroups'
 import { getAllTagNames, getItemNamesForTag } from './itemTags'
 import { copyImageClipToClipboard, copyTextClipToClipboard, downloadImageClip } from './equipClip'
+import { defenseSummaryHtml } from './defenseSummary'
 import {
   buildSearchPresets,
   getPresetsState,
@@ -394,13 +395,14 @@ function renderDetailPanes(root: HTMLElement) {
     equipBody.innerHTML = ''
     skillsBody.innerHTML = ''
     decoNote.textContent = ''
+    root.querySelector<HTMLDivElement>('#defense-summary-search')!.innerHTML = ''
     return
   }
   const r = lastResults[selectedIndex]
   const weapon = r.weapon ? gameData.weapons.find((w) => w.name === r.weapon) : undefined
   equipBody.innerHTML = [
     weapon
-      ? `<tr><td>Weapon</td><td>${escapeHtml(weapon.name)}</td><td>—</td><td>${weapon.levels[weapon.levels.length - 1]?.atk ?? '—'}</td>${Array.from({ length: 5 }, (_, i) => {
+      ? `<tr><td>Weapon</td><td>${escapeHtml(weapon.name)}</td><td>—</td><td>—</td>${Array.from({ length: 5 }, (_, i) => {
           const s = weapon.skills[i]
           return `<td>${s ? escapeHtml(`${s.skillName} ${s.point > 0 ? '+' : ''}${s.point}`) : ''}</td>`
         }).join('')}<td>${weapon.levels[weapon.levels.length - 1]?.slot ?? 0}</td><td>${weapon.rare}</td></tr>`
@@ -419,6 +421,14 @@ function renderDetailPanes(root: HTMLElement) {
   const decoText = r.decorations.length > 0 ? `Decorations used: ${r.decorations.join(', ')}` : 'No decorations used.'
   const cuffText = r.clothes ? ` | ${r.clothes}${r.skillCuffs.length > 0 ? `: ${r.skillCuffs.join(', ')}` : ''}` : ''
   decoNote.textContent = decoText + cuffText
+  const armor = (list: EquipData[], name: string) => list.find((d) => d.name === name)
+  root.querySelector<HTMLDivElement>('#defense-summary-search')!.innerHTML = defenseSummaryHtml([
+    { label: 'Head', data: armor(gameData.head, r.head) },
+    { label: 'Torso', data: armor(gameData.body, r.body) },
+    { label: 'Arms', data: armor(gameData.arm, r.arm) },
+    { label: 'Waist', data: armor(gameData.waist, r.waist) },
+    { label: 'Legs', data: armor(gameData.leg, r.leg) },
+  ])
 }
 
 function setResultsSummary(root: HTMLElement, text: string) {
@@ -492,7 +502,7 @@ export function renderSearchView(container: HTMLElement) {
           <div class="table-scroll" style="max-height:170px;">
             <table>
               <thead><tr>
-                <th>Part</th><th>Name</th><th>Class</th><th>Def/Atk</th>
+                <th>Part</th><th>Name</th><th>Class</th><th>Def</th>
                 <th>Skill 1</th><th>Skill 2</th><th>Skill 3</th><th>Skill 4</th><th>Skill 5</th>
                 <th>Slot</th><th>Rare</th>
               </tr></thead>
@@ -512,6 +522,10 @@ export function renderSearchView(container: HTMLElement) {
           </div>
         </fieldset>
       </div>
+      <fieldset class="defense-fieldset">
+        <legend>Selected Set — Defense &amp; Resistances</legend>
+        <div id="defense-summary-search"></div>
+      </fieldset>
     </div>
   `
 

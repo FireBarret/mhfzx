@@ -89,9 +89,18 @@ export function setOnPresetsChanged(cb: () => void): void {
   onChanged = cb
 }
 
+const changeListeners: (() => void)[] = []
+
+/** Lets other views (e.g. the Data Browser's defense summary) react to any
+ * preset mutation, from either tab, without owning the preset state. */
+export function onPresetsChange(cb: () => void): void {
+  changeListeners.push(cb)
+}
+
 function notifyChanged(): void {
   for (const { root, instanceId } of mounted) renderPresetsBody(root, instanceId)
   onChanged?.()
+  for (const cb of changeListeners) cb()
 }
 
 export function getPresetsState(): {

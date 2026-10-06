@@ -4,7 +4,10 @@
 import type { EquipData, JewelData, SkillCuffData, WeaponData } from '../data/schema'
 import { appState } from './appState'
 import { getTagNamesForItem, setTagsForItem } from './itemTags'
+import { defenseSummaryHtml } from './defenseSummary'
 import {
+  getPresetsState,
+  onPresetsChange,
   addCuff,
   addDecorationToSelectedTarget,
   BLANK_ITEM_NAME,
@@ -61,10 +64,25 @@ function blankRow(colCount: number): string {
   </tr>`
 }
 
+function skillCells(skills: { skillName: string; point: number }[]): string {
+  return Array.from({ length: 5 }, (_, i) => {
+    const s = skills[i]
+    return `<td>${s ? escapeHtml(`${s.skillName} ${s.point > 0 ? '+' : ''}${s.point}`) : ''}</td>`
+  }).join('')
+}
+
+function elementalCells(e: { fire: number; water: number; thunder: number; ice: number; dragon: number }): string {
+  const fmt = (n: number) => (n > 0 ? `+${n}` : String(n))
+  return [e.fire, e.water, e.thunder, e.ice, e.dragon].map((n) => `<td>${fmt(n)}</td>`).join('')
+}
+
+const EQUIP_COLS = 18
+const WEAPON_COLS = 12
+
 function equipRows(items: EquipData[], filter: string): string {
   const lower = filter.toLowerCase()
   return (
-    blankRow(9) +
+    blankRow(EQUIP_COLS) +
     items
       .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
       .map((d) => {
@@ -76,8 +94,9 @@ function equipRows(items: EquipData[], filter: string): string {
         <td>${escapeHtml(d.sex)}</td>
         <td>${d.rare}</td>
         <td>${best?.def ?? '—'}</td>
+        ${elementalCells(d.elemental)}
         <td>${best?.slot ?? 0}</td>
-        <td>${escapeHtml(skillsText(d.skills))}</td>
+        ${skillCells(d.skills)}
         ${tagsCellHtml(d.name)}
       </tr>`
       })
@@ -88,7 +107,7 @@ function equipRows(items: EquipData[], filter: string): string {
 function weaponRows(items: WeaponData[], filter: string): string {
   const lower = filter.toLowerCase()
   return (
-    blankRow(8) +
+    blankRow(WEAPON_COLS) +
     items
       .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
       .map((d) => {
@@ -100,7 +119,7 @@ function weaponRows(items: WeaponData[], filter: string): string {
         <td>${d.rare}</td>
         <td>${best?.atk ?? '—'}</td>
         <td>${best?.slot ?? 0}</td>
-        <td>${escapeHtml(skillsText(d.skills))}</td>
+        ${skillCells(d.skills)}
         ${tagsCellHtml(d.name)}
       </tr>`
       })
@@ -110,7 +129,7 @@ function weaponRows(items: WeaponData[], filter: string): string {
 
 function jewelRows(items: JewelData[], filter: string): string {
   const lower = filter.toLowerCase()
-  return items
+  return blankRow(8) + items
     .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
     .map(
       (d) => `<tr class="data-row" data-name="${escapeHtml(d.name)}" title="Double-click to add to the selected preset row's decorations">
@@ -145,8 +164,8 @@ function skillCuffRows(items: SkillCuffData[], filter: string): string {
     .join('')
 }
 
-const EQUIP_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Sex</th><th>Rare</th><th>Def</th><th>Slot</th><th>Skills</th><th>Tags</th>'
-const WEAPON_HEADER = '<th>Name</th><th>Job</th><th>Sex</th><th>Rare</th><th>Atk</th><th>Slot</th><th>Skills</th><th>Tags</th>'
+const EQUIP_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Sex</th><th>Rare</th><th>Def</th><th>Fire</th><th>Water</th><th>Thunder</th><th>Ice</th><th>Dragon</th><th>Slot</th><th>Skill 1</th><th>Skill 2</th><th>Skill 3</th><th>Skill 4</th><th>Skill 5</th><th>Tags</th>'
+const WEAPON_HEADER = '<th>Name</th><th>Job</th><th>Sex</th><th>Rare</th><th>Atk</th><th>Slot</th><th>Skill 1</th><th>Skill 2</th><th>Skill 3</th><th>Skill 4</th><th>Skill 5</th><th>Tags</th>'
 const JEWEL_HEADER = '<th>Name</th><th>Class</th><th>Job</th><th>Rare</th><th>Slot</th><th>Skills</th><th>Sources</th><th>Tags</th>'
 const CUFF_HEADER = '<th>Name</th><th>Family</th><th>Class</th><th>Rare</th><th>Slot</th><th>Skills</th><th>Tags</th>'
 
@@ -204,6 +223,10 @@ export function renderDataBrowserView(container: HTMLElement) {
         </table>
       </div>
       ${presetsPanelMarkup()}
+      <fieldset class="defense-fieldset">
+        <legend>Current Presets — Defense &amp; Resistances</legend>
+        <div id="defense-summary-browser"></div>
+      </fieldset>
     </div>
   `
 
@@ -252,6 +275,10 @@ export function renderDataBrowserView(container: HTMLElement) {
           const warning = addCuff(name)
           setStatus(warning ?? `Added "${name}" to the skill cuffs preset.`)
         } else if (activeCategory === 'Jewel') {
+          if (name === BLANK_ITEM_NAME) {
+            setStatus('Blank decoration: leave a Deco column empty in the preset panel to skip it.')
+            return
+          }
           const warning = addDecorationToSelectedTarget(name)
           setStatus(warning ?? `Added "${name}" as a decoration.`)
         }
@@ -270,10 +297,31 @@ export function renderDataBrowserView(container: HTMLElement) {
     refresh()
   })
 
+  const renderDefense = () => {
+    const gd = appState.gameData
+    const target = container.querySelector<HTMLDivElement>('#defense-summary-browser')!
+    if (!gd) {
+      target.innerHTML = ''
+      return
+    }
+    const { presets } = getPresetsState()
+    const find = <T extends { name: string }>(list: T[], name: string | undefined) =>
+      name ? list.find((d) => d.name === name) : undefined
+    target.innerHTML = defenseSummaryHtml([
+      { label: 'Head', data: find(gd.head, presets.head?.name) },
+      { label: 'Torso', data: find(gd.body, presets.body?.name) },
+      { label: 'Arms', data: find(gd.arm, presets.arm?.name) },
+      { label: 'Waist', data: find(gd.waist, presets.waist?.name) },
+      { label: 'Legs', data: find(gd.leg, presets.leg?.name) },
+    ])
+  }
+  onPresetsChange(renderDefense)
   appState.onDataLoaded(() => {
     refresh()
     refreshAllPresetPanels()
+    renderDefense()
   })
   refresh()
   mountPresetsPanel(container, 'browser')
+  renderDefense()
 }

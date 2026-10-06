@@ -44,6 +44,10 @@ export interface Cost {
 export interface Ability {
   typeName: string
   name?: string
+  /** Resolved Zenith/Teni rung (name + point) for Skill Slots Up / スキル強化
+   * abilities -- filled in by assembleGameData from dat/TeniSkillBase.xml,
+   * since the item XML only names the rung, not its point value. */
+  tag?: SkillOption
 }
 
 /** One `Skill Point="N">Name` entry. Order matters: the first 5 entries in
