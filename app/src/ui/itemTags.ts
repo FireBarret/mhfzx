@@ -90,3 +90,25 @@ export function getItemNamesForTag(tagName: string): string[] | null {
   if (!tagName) return null
   return readTags().find((t) => t.name === tagName)?.itemKeys ?? []
 }
+
+/** Merges imported tag lists (e.g. from the original app's tag/*.xml) into the
+ * store. A tag that already exists by name gets the imported items unioned
+ * into its membership; a new name is appended with a fresh id. Returns how
+ * many distinct tag names were touched. */
+export function importTags(imported: { name: string; itemKeys: string[] }[]): number {
+  const tags = readTags()
+  let nextId = tags.reduce((max, t) => Math.max(max, t.id), 0) + 1
+  const byName = new Map(tags.map((t) => [t.name, t]))
+  for (const { name, itemKeys } of imported) {
+    const existing = byName.get(name)
+    if (existing) {
+      existing.itemKeys = Array.from(new Set([...existing.itemKeys, ...itemKeys]))
+    } else {
+      const created: ItemTag = { id: nextId++, name, itemKeys: Array.from(new Set(itemKeys)) }
+      tags.push(created)
+      byName.set(name, created)
+    }
+  }
+  writeTags(tags.filter((t) => t.itemKeys.length > 0))
+  return imported.length
+}

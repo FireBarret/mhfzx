@@ -6,6 +6,8 @@ import type { GameData } from './data/schema'
 import { appState } from './ui/appState'
 import { renderSearchView, renderTagFilter } from './ui/searchView'
 import { renderDataBrowserView } from './ui/dataBrowserView'
+import { loadTagsFromFileList } from './data/tagImport'
+import { refreshAllPresetPanels } from './ui/presetPanel'
 
 type Tab = 'search' | 'browser'
 
@@ -96,7 +98,9 @@ folderInput.addEventListener('change', async () => {
   try {
     const gameData = await loadGameDataFromFileList(files)
     appState.setGameData(gameData)
-    statusEl.textContent = describeGameData(gameData)
+    const tagLists = await loadTagsFromFileList(files)
+    statusEl.textContent = `${describeGameData(gameData)}${tagLists > 0 ? ` Imported ${tagLists} tag lists.` : ''}`
+    refreshAllPresetPanels()
   } catch (err) {
     if (err instanceof MissingFilesError) {
       statusEl.textContent = `Folder is missing required files: ${err.missing.join(', ')}. Select the app's root folder (containing dat/ and conf/).`
