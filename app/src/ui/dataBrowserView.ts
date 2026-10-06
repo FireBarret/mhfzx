@@ -36,6 +36,18 @@ const CATEGORY_TO_PRESET_SLOT: Partial<Record<Category, PresetSlot>> = {
 
 let activeCategory: Category = 'Head'
 let filterText = ''
+/** Facet filters layered on top of the name filter. '' = no restriction. */
+const facets = { job: '', sex: '', equipType: '', minRare: '', slot: '' }
+
+function passesFacets(d: { job?: string; sex?: string; equipType?: string; rare?: number; slot?: number }): boolean {
+  // 共 means "both", so it passes any specific job/sex facet.
+  if (facets.job && d.job !== undefined && d.job !== '共' && d.job !== facets.job) return false
+  if (facets.sex && d.sex !== undefined && d.sex !== '共' && d.sex !== facets.sex) return false
+  if (facets.equipType && d.equipType !== undefined && d.equipType !== facets.equipType) return false
+  if (facets.minRare && d.rare !== undefined && d.rare < Number(facets.minRare)) return false
+  if (facets.slot && d.slot !== undefined && d.slot !== Number(facets.slot)) return false
+  return true
+}
 let doubleClickStatus = ''
 
 /** The "already have" tags column, appended to every category's row —
@@ -84,7 +96,7 @@ function equipRows(items: EquipData[], filter: string): string {
   return (
     blankRow(EQUIP_COLS) +
     items
-      .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
+      .filter((d) => (filter === '' || d.name.toLowerCase().includes(lower)) && passesFacets({ job: d.job, sex: d.sex, equipType: d.equipType, rare: d.rare, slot: d.levels[d.levels.length - 1]?.slot }))
       .map((d) => {
         const best = d.levels[d.levels.length - 1]
         return `<tr class="data-row" data-name="${escapeHtml(d.name)}" title="Double-click to slot into a preset">
@@ -109,7 +121,7 @@ function weaponRows(items: WeaponData[], filter: string): string {
   return (
     blankRow(WEAPON_COLS) +
     items
-      .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
+      .filter((d) => (filter === '' || d.name.toLowerCase().includes(lower)) && passesFacets({ job: d.job, sex: d.sex, rare: d.rare, slot: d.levels[d.levels.length - 1]?.slot }))
       .map((d) => {
         const best = d.levels[d.levels.length - 1]
         return `<tr class="data-row" data-name="${escapeHtml(d.name)}" title="Double-click to slot into a preset">
@@ -130,7 +142,7 @@ function weaponRows(items: WeaponData[], filter: string): string {
 function jewelRows(items: JewelData[], filter: string): string {
   const lower = filter.toLowerCase()
   return blankRow(8) + items
-    .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
+    .filter((d) => (filter === '' || d.name.toLowerCase().includes(lower)) && passesFacets({ job: d.job, rare: d.rare, slot: d.slot }))
     .map(
       (d) => `<tr class="data-row" data-name="${escapeHtml(d.name)}" title="Double-click to add to the selected preset row's decorations">
         <td>${escapeHtml(d.name)}</td>
@@ -149,7 +161,7 @@ function jewelRows(items: JewelData[], filter: string): string {
 function skillCuffRows(items: SkillCuffData[], filter: string): string {
   const lower = filter.toLowerCase()
   return items
-    .filter((d) => filter === '' || d.name.toLowerCase().includes(lower))
+    .filter((d) => (filter === '' || d.name.toLowerCase().includes(lower)) && passesFacets({ rare: d.rare, slot: d.slot }))
     .map(
       (d) => `<tr class="data-row" data-name="${escapeHtml(d.name)}" title="Double-click to attach to the skill cuffs preset">
         <td>${escapeHtml(d.name)}</td>
@@ -214,6 +226,14 @@ export function renderDataBrowserView(container: HTMLElement) {
           ${CATEGORIES.map((c) => `<button class="category-tab" data-cat="${c}">${c} (<span data-count="${c}">0</span>)</button>`).join('')}
         </div>
         <input id="filter-input" type="text" placeholder="Filter by name…" style="flex:1; max-width:300px;">
+      </div>
+      <div class="facet-bar">
+        <label>Job <select data-facet="job"><option value="">Any</option><option>共</option><option>剣士</option><option>ガンナー</option></select></label>
+        <label>Sex <select data-facet="sex"><option value="">Any</option><option>共</option><option>女</option><option>男</option></select></label>
+        <label>Type <select data-facet="equipType" id="facet-type"><option value="">Any</option></select></label>
+        <label>Min rare <select data-facet="minRare"><option value="">Any</option>${[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => `<option>${n}</option>`).join('')}</select></label>
+        <label>Slots <select data-facet="slot"><option value="">Any</option><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
+        <button type="button" id="facet-clear">Clear filters</button>
       </div>
       <div id="dblclick-status" class="skill-tier-note"></div>
       <div class="table-scroll" style="max-height:45vh;">
@@ -292,11 +312,30 @@ export function renderDataBrowserView(container: HTMLElement) {
       refresh()
     })
   })
+  container.querySelectorAll<HTMLSelectElement>('.facet-bar select').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      facets[sel.dataset.facet as keyof typeof facets] = sel.value
+      refresh()
+    })
+  })
+  container.querySelector<HTMLButtonElement>('#facet-clear')!.addEventListener('click', () => {
+    for (const k of Object.keys(facets) as (keyof typeof facets)[]) facets[k] = ''
+    container.querySelectorAll<HTMLSelectElement>('.facet-bar select').forEach((sel) => (sel.value = ''))
+    refresh()
+  })
   filterInput.addEventListener('input', () => {
     filterText = filterInput.value
     refresh()
   })
 
+  const populateTypeFacet = () => {
+    const gd = appState.gameData
+    if (!gd) return
+    const types = Array.from(new Set([...gd.head, ...gd.body, ...gd.arm, ...gd.waist, ...gd.leg].map((d) => d.equipType))).sort()
+    const sel = container.querySelector<HTMLSelectElement>('#facet-type')!
+    sel.innerHTML = '<option value="">Any</option>' + types.map((t) => `<option>${escapeHtml(t)}</option>`).join('')
+    sel.value = facets.equipType
+  }
   const renderDefense = () => {
     const gd = appState.gameData
     const target = container.querySelector<HTMLDivElement>('#defense-summary-browser')!
@@ -317,6 +356,7 @@ export function renderDataBrowserView(container: HTMLElement) {
   }
   onPresetsChange(renderDefense)
   appState.onDataLoaded(() => {
+    populateTypeFacet()
     refresh()
     refreshAllPresetPanels()
     renderDefense()
